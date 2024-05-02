@@ -25,7 +25,5 @@ There are two input files for this script:
 
 Variant calling format files have specific and rigorous standards. To review proper VCF format [see this link](https://samtools.github.io/hts-specs/VCFv4.2.pdf). The custom haplotype formatted file has a unique structure that allows for a single input file to make haplotype "calls". Below is a displayed example of a haplotyping file:
 
-```tsv
-Locus	N_Expected	Markers	Pos	Het	Neg	Missing
-FHB1	TRUE	CHS21_3B013956348:SUM10_3B012558341	C:T_G:T_N:T	S:T	G:N_C:N_S:N	N:N
-```
+
+
