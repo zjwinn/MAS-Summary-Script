@@ -1,0 +1,366 @@
+---
+title: "MAS Calling Script"
+author: "Zachary Winn"
+date: "2024-04-30"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Library Requirments
+
+This section checks if dependencies are installed, installs them if they are not present, and then library the packages required. 
+
+```{r}
+# Define a list of required packages
+required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils")
+
+# Check if required packages are installed
+missing_packages <- setdiff(required_packages, rownames(installed.packages()))
+
+# Install missing packages
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+
+# Load required packages
+library(parallel)
+library(foreach)
+suppressMessages(library(doParallel))
+suppressMessages(library(data.table))
+```
+
+# Set Input Files
+
+Here I am setting the names of my inputs.
+
+```{r}
+# VCF file name
+vcf_file <- "Example.vcf"
+
+# MAS key
+mas_key_file <- "Example_File.txt"
+```
+
+# Read in Data and Convert to HapMap
+
+Here I am using base R to read in a VCF and format it into a HapMap-like format to look at the allelic state of a the VCF markers.
+
+```{r}
+# Count lines that start with ##
+count_header_lines <- function(x) {
+  # Open connection to file
+  con <- file(x, "r")
+  # Set the number for first line
+  header_lines <- 0
+  # While 
+  while (TRUE) {
+    # Read in the line = 1
+    line <- readLines(con, n = 1)
+    # If the line equal to zero 
+    if (length(line) == 0) break  # Exit loop when end of file is reached
+    # If the line contains ##
+    if (substr(line, 1, 2) == "##") {
+      # Add to length
+      header_lines <- header_lines + 1
+    } else {
+      break  # Exit loop when non-header lines start
+    }
+  }
+  close(con)
+  return(header_lines)
+}
+
+# Read vcf as table
+vcf <- as.data.frame(data.table::fread(input = vcf_file, skip = count_header_lines(vcf_file)))
+
+# Remove the first row if it was a header row
+vcf[,10:ncol(vcf)] <- lapply(vcf[,10:ncol(vcf)], function(x){substr(x, 1, 3)}) 
+
+# Read in MAS key 
+key <- read.table(mas_key_file, sep = "\t", header = TRUE, na.strings = c("", "NA"))
+
+# Key markers
+key_markers <- key[,"Markers"]
+
+# Sting separate and unique markers
+key_markers <- unique(unlist(strsplit(key_markers, split = ":")))
+
+# subset
+vcf <- vcf[vcf[,"ID"] %in% key_markers,]
+
+# Define a function to be executed in parallel
+vcf_to_hapmap <- function(x) {
+  
+  temp1 <- x
+  temp2 <- temp1[,"REF"]
+  temp3 <- temp1[,"ALT"]
+  temp4 <- temp1[,"ID"]
+  temp1 <- temp1[,10:ncol(temp1)]
+  
+  if(temp2 %in% c("A", "T", "G", "C") & temp3 %in% c("A", "T", "G", "C")){
+
+    #print("SNP")
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    temp1[temp1=="A/A"] = "A"
+    temp1[temp1=="T/T"] = "T"
+    temp1[temp1=="C/C"] = "C"
+    temp1[temp1=="G/G"] = "G"
+    temp1[temp1=="A/G"] = "R"
+    temp1[temp1=="G/A"] = "R"
+    temp1[temp1=="C/T"] = "Y"
+    temp1[temp1=="T/C"] = "Y"
+    temp1[temp1=="G/C"] = "S"
+    temp1[temp1=="C/G"] = "S"
+    temp1[temp1=="A/T"] = "W"
+    temp1[temp1=="T/A"] = "W"
+    temp1[temp1=="G/T"] = "K"
+    temp1[temp1=="T/G"] = "K"
+    temp1[temp1=="A/C"] = "M"
+    temp1[temp1=="C/A"] = "M"
+    temp1[temp1=="./."] = "N"
+    rownames(temp1) <- temp4
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4)
+    
+  }else if (nchar(temp2)<nchar(temp3)){
+    
+    #print("DELETION")
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    temp1[temp1==paste(temp2, temp2, sep = "/")] = "-"
+    temp1[temp1==paste(temp3, temp3, sep = "/")] = "N"  
+    temp1[temp1=="./."] = "N"
+    rownames(temp1) <- temp4
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4)
+    
+  }else if (nchar(temp2)>nchar(temp3)){
+
+    #print("INSERTION")
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    temp1[temp1==paste(temp2, temp2, sep = "/")] = substr(temp2, start = nchar(temp2), stop = nchar(temp2))
+    temp1[temp1=="./."] = "N"
+    rownames(temp1) <- temp4
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4)
+        
+  }
+}
+
+# Set the number of cores to use
+num_cores <- detectCores()-1
+
+# Create a cluster
+cl <- makeCluster(num_cores)
+
+# Register the cluster
+registerDoParallel(cl)
+
+# Message
+print_text <- paste("### HapMap conversion start:", Sys.time(), "###") 
+
+# Print
+print(paste(rep("#", nchar(print_text)), collapse = ""))
+print(print_text)
+print(paste(rep("#", nchar(print_text)), collapse = ""))
+
+# For each
+hapmap <- foreach(i = 1:nrow(vcf), .combine = 'rbind') %dopar% {
+  # Pull data
+  temp1 <- vcf[i,]
+  
+  # Do function
+  temp1 <- vcf_to_hapmap(temp1)
+  
+  # Return 
+  return(temp1)
+  
+  # Remove
+  remove(temp1)
+}
+
+# Stop the cluster
+stopCluster(cl)
+
+# Remove cluster
+remove(cl)
+
+# Write out hapmap
+fwrite(as.data.table(hapmap, keep.rownames = TRUE), 
+       file = "vcf_to_hapmap.hmp.gz",
+       sep = "\t")
+
+# Message
+print_text <- paste("### HapMap conversion stop:", Sys.time(), "###") 
+
+# Print
+print(paste(rep("#", nchar(print_text)), collapse = ""))
+print(print_text)
+print(paste(rep("#", nchar(print_text)), collapse = ""))
+```
+
+# Get report
+
+```{r}
+# For loop
+for (i in unique(key[,"Locus"])){
+  
+  # Pull information
+  temp1 <- key[key[,"Locus"]==i,]
+  
+  # Get markers
+  temp2 <-  unlist(strsplit(key[,"Markers"], ":"))
+  
+  # Pull markers
+  temp3 <- as.data.frame(hapmap[rownames(hapmap) %in% temp2, ])
+  
+  # Pull haplotypes
+  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(key[,"Pos"], "_"))}
+  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(key[,"Het"], "_"))}
+  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(key[,"Neg"], "_"))}
+  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(key[,"Missing"], "_"))}  
+
+  # For every individual in the hapmap
+  for (j in colnames(hapmap)){
+    
+    # Pull markers for individual
+    temp8 <- hapmap[,j]
+    
+    # Pull markers and collaps into a haplotype
+    temp9 <- paste(temp8, collapse = ":")
+    
+    # Make call
+    temp10 <- ifelse(temp9 %in% temp4, "POS",
+                     ifelse(temp9 %in% temp5, "HET",
+                            ifelse(temp9 %in% temp6, "NEG",
+                                   ifelse(temp9 %in% temp7, NA, "UNIDENTIFIED"))))
+    
+    # Format into a dataframe
+    temp11 <- data.frame(Line = j,
+                         t(temp8),
+                         temp9, 
+                         temp10)
+    
+    # Make new column names
+    colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""))
+    
+    # Check if this is the first line in the hapmap
+    if(j == colnames(hapmap)[1]){
+      
+      # Make a new dataframe
+      temp12<-temp11
+      
+      # Remove temporary files
+      remove(temp8, temp9, temp10, temp11)
+      
+    }else{
+      
+      # Bind onto that new dataframe
+      temp12<-rbind(temp12, temp11)
+      
+      # Remove temporary files
+      remove(temp8, temp9, temp10, temp11)
+      
+    }
+  }
+  
+  # Check if this is the first locus to be predicted
+  if(i == unique(key[,"Locus"])[1]){
+    
+    # Make a new dataframe
+    marker_report<-temp12
+    
+    # Remove temporary files
+    remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+    
+  }else{
+    
+    # Else bind onto that new dataframe
+    marker_report<-merge(marker_report, temp12, by="Line")
+    
+    # Remove temporary files
+    remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+  }
+}
+
+# Write out full report
+write.csv(marker_report,
+          "Marker_Report_Full.csv",
+          row.names = FALSE,
+          quote = TRUE)
+
+# Pull column names
+columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary", colnames(marker_report))])
+
+# Pull summary and rename
+marker_summary<-marker_report[,columns_to_pull]
+colnames(marker_summary)<-gsub("_Summary", "", colnames(marker_summary))
+
+# Write out just summary
+write.csv(marker_summary,
+          "Marker_Report_Summary.csv",
+          row.names = FALSE,
+          quote = TRUE)
+
+# Get information
+missing_haplotypes <- c()
+
+# Pull out the problem haplotypes
+for (i in unique(key[,"Locus"])){
+ 
+  # Pull data
+  temp1 <- marker_report[,c("Line",colnames(marker_report)[grep(pattern = i, colnames(marker_report))])]
+  
+  # Rename columns
+  temp2 <- colnames(temp1)
+  temp2 <- gsub(paste(i, "_", sep = ""), "", temp2)
+  colnames(temp1) <- temp2
+  
+  # Filter
+  temp1 <- na.omit(temp1[temp1[,"Summary"]=="UNIDENTIFIED",])
+  
+  # If
+  if(nrow(temp1)!=0){
+  
+    # Pull data
+    temp3 <- key[key[,"Locus"]==i,]
+    
+    # Make dataframe
+    temp4 <- unique(temp1[,"Haplotype"])
+    
+    # Bind
+    temp5 <- data.frame(temp3, 
+                        Unidentified_Haplotype=temp4,
+                        row.names = NULL)
+    
+    # Rbind
+    missing_haplotypes <- rbind(missing_haplotypes, temp5)
+    
+    # Remove
+    remove(temp3, temp4, temp5)
+      
+  }
+  
+  # Remove
+  remove(temp1, temp2)
+  
+}
+
+# Check if a file needs to be written out
+if(!is.null(missing_haplotypes)){
+ 
+  # Write out information
+  write.csv(missing_haplotypes,
+            "Unidentified_Haplotypes.csv",
+            row.names = FALSE,
+            quote = TRUE)  
+  
+}
+```

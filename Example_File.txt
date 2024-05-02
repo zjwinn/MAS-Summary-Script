@@ -1,0 +1,2 @@
+Locus	N_Expected	Markers	Pos	Het	Neg	Missing
+FHB1	TRUE	CHS21_3B013956348:SUM10_3B012558341	C:T_G:T_N:T	S:T	G:N_C:N_S:N	N:N
