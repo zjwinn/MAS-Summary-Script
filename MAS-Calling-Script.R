@@ -1,21 +1,8 @@
----
-title: "MAS Calling Script"
-author: "Zachary Winn"
-date: "2024-04-30"
-output: html_document
-editor_options: 
-  chunk_output_type: console
----
-
-```{r setup, include=FALSE}
+## ----setup, include=FALSE------------------------------------------------------------------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-# Library Requirments
 
-This section checks if dependencies are installed, installs them if they are not present, and then library the packages required. 
-
-```{r library}
+## ----library-------------------------------------------------------------------------------------------------------------------------
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -33,25 +20,17 @@ library(foreach)
 suppressMessages(library(doParallel))
 suppressMessages(library(data.table))
 library(knitr)
-```
 
-# Set Input Files
 
-Here I am setting the names of my inputs.
-
-```{r inputs}
+## ----inputs--------------------------------------------------------------------------------------------------------------------------
 # VCF file name
 vcf_file <- "Example.vcf"
 
 # MAS key
 mas_key_file <- "Example_File.txt"
-```
 
-# Read in Data and Convert to HapMap
 
-Here I am using base R to read in a VCF and format it into a HapMap-like format to look at the allelic state of a the VCF markers.
-
-```{r hapmap_conversion}
+## ----hapmap_conversion---------------------------------------------------------------------------------------------------------------
 # Count lines that start with ##
 count_header_lines <- function(x) {
   # Open connection to file
@@ -205,13 +184,9 @@ print_text <- paste("### HapMap conversion stop:", Sys.time(), "###")
 print(paste(rep("#", nchar(print_text)), collapse = ""))
 print(print_text)
 print(paste(rep("#", nchar(print_text)), collapse = ""))
-```
 
-# Get Report
 
-Here I am taking the haplotyping file and writing out reports.
-
-```{r making_reports}
+## ----making_reports------------------------------------------------------------------------------------------------------------------
 # For loop
 for (i in unique(key[,"Locus"])){
   
@@ -366,13 +341,9 @@ if(!is.null(missing_haplotypes)){
             quote = TRUE)  
   
 }
-```
 
-# Purl out base R code for users without Rstudio
 
-Here I am using knitr to purl the R code in this markdown. This is so that users which are on systems which cannot use Rstudio can use this code in a base R installation.
-
-```{r purling_script}
+## ----purling_script------------------------------------------------------------------------------------------------------------------
 # Write out .R file if there is a .Rmd in current working directory
 if("MAS-Calling-Script.Rmd" %in% list.files()){knitr::purl("MAS-Calling-Script.Rmd")}
-```
+
