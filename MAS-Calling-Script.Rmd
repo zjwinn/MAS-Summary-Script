@@ -219,22 +219,22 @@ for (i in unique(key[,"Locus"])){
   temp1 <- key[key[,"Locus"]==i,]
   
   # Get markers
-  temp2 <-  unlist(strsplit(key[,"Markers"], ":"))
+  temp2 <-  unlist(strsplit(temp1[,"Markers"], ":"))
   
   # Pull markers
   temp3 <- as.data.frame(hapmap[rownames(hapmap) %in% temp2, ])
   
   # Pull haplotypes
-  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(key[,"Pos"], "_"))}
-  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(key[,"Het"], "_"))}
-  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(key[,"Neg"], "_"))}
-  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(key[,"Missing"], "_"))}  
+  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
+  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
+  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
+  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}  
 
   # For every individual in the hapmap
   for (j in colnames(hapmap)){
     
     # Pull markers for individual
-    temp8 <- hapmap[,j]
+    temp8 <- temp3[,j]
     
     # Pull markers and collaps into a haplotype
     temp9 <- paste(temp8, collapse = ":")
