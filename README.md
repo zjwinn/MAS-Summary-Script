@@ -54,6 +54,3 @@ There are four potential outputs from the script:
     - This file contains only the summary of haplotype calls for each major locus (POS, HET, NEG, NA, UNIDENTIFIED).
 4. Unidentified_Haplotypes.csv (comma seperated value file)
     - This file will only be produced if there are "UNIDENTIFIED" haplotypes associated with a major locus. This file is meant to help individuals debugging their own haplotype formatted file.
-  
-# Identifying haplotypes associated with your locus
-Suppose that there are some haplotypes that come up as "UNIDENTIFIED" but you are unsure of how to 
