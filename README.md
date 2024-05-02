@@ -43,4 +43,17 @@ This file contains seven columns and some are required to run the code properly:
    
 All columns are case sensitive and columns labled as "manditory" must be found in the haplotyping file to get the code to run properly.
 
+# Output files
+There are four potential outputs from the script:
 
+1. vcf_to_hapmap.hmp.gz
+    - A hapmap file of selected markers for haplotyping. 
+2. Marker_Report_Full.csv (comma seperated value file)
+    - This file contains the markers used to make major locus haplotype calls, the resultant haplotype string associated with a major locus call, and the summary of the call (POS, HET, NEG, NA, UNIDENTIFIED).
+3. Marker_Report_Summary.csv (comma seperated value file)
+    - This file contains only the summary of haplotype calls for each major locus (POS, HET, NEG, NA, UNIDENTIFIED).
+4. Unidentified_Haplotypes.csv (comma seperated value file)
+    - This file will only be produced if there are "UNIDENTIFIED" haplotypes associated with a major locus. This file is meant to help individuals debugging their own haplotype formatted file.
+  
+# Identifying haplotypes associated with your locus
+Suppose that there are some haplotypes that come up as "UNIDENTIFIED" but you are unsure of how to 
