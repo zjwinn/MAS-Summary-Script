@@ -251,6 +251,26 @@ for (i in unique(key[,"Locus"])){
                          temp9, 
                          temp10)
     
+    # Pull optional annotations
+    temp13 <- temp1[,"Pos_Annot"]
+    temp14 <- temp1[,"Het_Annot"]    
+    temp15 <- temp1[,"Neg_Annot"]
+    temp16 <- temp1[,"Missing_Annot"]
+    
+    # Format annotations
+    if(is.na(temp11[,ncol(temp11)])==TRUE & is.na(temp16)==FALSE){
+      temp11[,ncol(temp11)] <- temp16
+    }else if(temp11[,ncol(temp11)]=="POS" & is.na(temp13)==FALSE){
+      temp11[,ncol(temp11)] <- temp13
+    }else if(temp11[,ncol(temp11)]=="HET" & is.na(temp14)==FALSE){
+      temp11[,ncol(temp11)] <- temp14
+    }else if(temp11[,ncol(temp11)]=="NEG" & is.na(temp15)==FALSE){
+      temp11[,ncol(temp11)] <- temp15
+    }
+    
+    # Remove
+    remove(temp13, temp14, temp15, temp16)
+    
     # Make new column names
     colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""))
     
