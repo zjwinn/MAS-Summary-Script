@@ -1,8 +1,8 @@
-## ----setup, include=FALSE------------------------------------------------------------------------------------------------------------
+## ----setup, include=FALSE-------------------------------------------------------------------------------------------------------------------------------------------------
 knitr::opts_chunk$set(echo = TRUE)
 
 
-## ----library-------------------------------------------------------------------------------------------------------------------------
+## ----library--------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -22,7 +22,7 @@ suppressMessages(library(data.table))
 library(knitr)
 
 
-## ----inputs--------------------------------------------------------------------------------------------------------------------------
+## ----inputs---------------------------------------------------------------------------------------------------------------------------------------------------------------
 # VCF file name
 vcf_file <- "Example.vcf"
 
@@ -30,7 +30,7 @@ vcf_file <- "Example.vcf"
 mas_key_file <- "Example_File.txt"
 
 
-## ----hapmap_conversion---------------------------------------------------------------------------------------------------------------
+## ----hapmap_conversion----------------------------------------------------------------------------------------------------------------------------------------------------
 # Count lines that start with ##
 count_header_lines <- function(x) {
   # Open connection to file
@@ -186,7 +186,7 @@ print(print_text)
 print(paste(rep("#", nchar(print_text)), collapse = ""))
 
 
-## ----making_reports------------------------------------------------------------------------------------------------------------------
+## ----making_reports-------------------------------------------------------------------------------------------------------------------------------------------------------
 # For loop
 for (i in unique(key[,"Locus"])){
   
@@ -194,22 +194,22 @@ for (i in unique(key[,"Locus"])){
   temp1 <- key[key[,"Locus"]==i,]
   
   # Get markers
-  temp2 <-  unlist(strsplit(key[,"Markers"], ":"))
+  temp2 <-  unlist(strsplit(temp1[,"Markers"], ":"))
   
   # Pull markers
   temp3 <- as.data.frame(hapmap[rownames(hapmap) %in% temp2, ])
   
   # Pull haplotypes
-  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(key[,"Pos"], "_"))}
-  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(key[,"Het"], "_"))}
-  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(key[,"Neg"], "_"))}
-  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(key[,"Missing"], "_"))}  
+  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
+  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
+  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
+  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}  
 
   # For every individual in the hapmap
   for (j in colnames(hapmap)){
     
     # Pull markers for individual
-    temp8 <- hapmap[,j]
+    temp8 <- temp3[,j]
     
     # Pull markers and collaps into a haplotype
     temp9 <- paste(temp8, collapse = ":")
@@ -225,6 +225,26 @@ for (i in unique(key[,"Locus"])){
                          t(temp8),
                          temp9, 
                          temp10)
+    
+    # Pull optional annotations
+    temp13 <- temp1[,"Pos_Annot"]
+    temp14 <- temp1[,"Het_Annot"]    
+    temp15 <- temp1[,"Neg_Annot"]
+    temp16 <- temp1[,"Missing_Annot"]
+    
+    # Format annotations
+    if(is.na(temp11[,ncol(temp11)])==TRUE & is.na(temp16)==FALSE){
+      temp11[,ncol(temp11)] <- temp16
+    }else if(temp11[,ncol(temp11)]=="POS" & is.na(temp13)==FALSE){
+      temp11[,ncol(temp11)] <- temp13
+    }else if(temp11[,ncol(temp11)]=="HET" & is.na(temp14)==FALSE){
+      temp11[,ncol(temp11)] <- temp14
+    }else if(temp11[,ncol(temp11)]=="NEG" & is.na(temp15)==FALSE){
+      temp11[,ncol(temp11)] <- temp15
+    }
+    
+    # Remove
+    remove(temp13, temp14, temp15, temp16)
     
     # Make new column names
     colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""))
@@ -343,7 +363,7 @@ if(!is.null(missing_haplotypes)){
 }
 
 
-## ----purling_script------------------------------------------------------------------------------------------------------------------
+## ----purling_script-------------------------------------------------------------------------------------------------------------------------------------------------------
 # Write out .R file if there is a .Rmd in current working directory
 if("MAS-Calling-Script.Rmd" %in% list.files()){knitr::purl("MAS-Calling-Script.Rmd")}
 
