@@ -41,7 +41,7 @@ Here I am setting the names of my inputs.
 
 ```{r inputs}
 # VCF file name
-vcf_file <- "Example.vcf"
+vcf_file <- "Example.vcf.gz"
 
 # MAS key
 mas_key_file <- "Example_File.txt"
@@ -49,7 +49,7 @@ mas_key_file <- "Example_File.txt"
 
 # Read in Data and Convert to HapMap
 
-Here I am using base R to read in a VCF and format it into a HapMap-like format to look at the allelic state of a the VCF markers.
+Here I am using base R to read in a VCF and format it into a HapMap format to look at the allelic state of a the VCF markers.
 
 ```{r hapmap_conversion}
 # Count lines that start with ##
@@ -101,6 +101,7 @@ vcf_to_hapmap <- function(x) {
   temp2 <- temp1[,"REF"]
   temp3 <- temp1[,"ALT"]
   temp4 <- temp1[,"ID"]
+  temp5 <- temp1
   temp1 <- temp1[,10:ncol(temp1)]
   
   if(temp2 %in% c("A", "T", "G", "C") & temp3 %in% c("A", "T", "G", "C")){
@@ -125,9 +126,22 @@ vcf_to_hapmap <- function(x) {
     temp1[temp1=="A/C"] = "M"
     temp1[temp1=="C/A"] = "M"
     temp1[temp1=="./."] = "N"
-    rownames(temp1) <- temp4
+    temp1<-data.frame(`rs#` = temp4,
+                      alleles = paste(temp2,"/",temp3,sep = ""),
+                      chrom = temp5[,"#CHROM"],
+                      pos = temp5[,"POS"],
+                      strand = "+",
+                      `assembly#` = "NA",
+                      center = "NA",
+                      protLSID = "NA",
+                      assayLSID = "NA",
+                      panelLSID = "NA",
+                      QCcode = "NA",
+                      temp1,
+                      check.names = FALSE,
+                      row.names = NULL)
     return(temp1)
-    remove(temp1, temp2, temp3, temp4)
+    remove(temp1, temp2, temp3, temp4, temp5)
     
   }else if (nchar(temp2)<nchar(temp3)){
     
@@ -137,9 +151,22 @@ vcf_to_hapmap <- function(x) {
     temp1[temp1==paste(temp2, temp2, sep = "/")] = "-"
     temp1[temp1==paste(temp3, temp3, sep = "/")] = "N"  
     temp1[temp1=="./."] = "N"
-    rownames(temp1) <- temp4
+    temp1<-data.frame(`rs#` = temp4,
+                  alleles = "-",
+                  chrom = temp5[,"#CHROM"],
+                  pos = temp5[,"POS"],
+                  strand = "+",
+                  `assembly#` = "NA",
+                  center = "NA",
+                  protLSID = "NA",
+                  assayLSID = "NA",
+                  panelLSID = "NA",
+                  QCcode = "NA",
+                  temp1,
+                  check.names = FALSE,
+                  row.names = NULL)
     return(temp1)
-    remove(temp1, temp2, temp3, temp4)
+    remove(temp1, temp2, temp3, temp4, temp5)
     
   }else if (nchar(temp2)>nchar(temp3)){
 
@@ -148,9 +175,22 @@ vcf_to_hapmap <- function(x) {
     temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
     temp1[temp1==paste(temp2, temp2, sep = "/")] = substr(temp2, start = nchar(temp2), stop = nchar(temp2))
     temp1[temp1=="./."] = "N"
-    rownames(temp1) <- temp4
+    temp1<-data.frame(`rs#` = temp4,
+                      alleles = substr(temp2, start = nchar(temp2), stop = nchar(temp2)),
+                      chrom = temp5[,"#CHROM"],
+                      pos = temp5[,"POS"],
+                      strand = "+",
+                      `assembly#` = "NA",
+                      center = "NA",
+                      protLSID = "NA",
+                      assayLSID = "NA",
+                      panelLSID = "NA",
+                      QCcode = "NA",
+                      temp1,
+                      check.names = FALSE,
+                      row.names = NULL)
     return(temp1)
-    remove(temp1, temp2, temp3, temp4)
+    remove(temp1, temp2, temp3, temp4, temp5)
         
   }
 }
@@ -194,8 +234,8 @@ stopCluster(cl)
 remove(cl)
 
 # Write out hapmap
-fwrite(as.data.table(hapmap, keep.rownames = TRUE), 
-       file = "vcf_to_hapmap.hmp.gz",
+fwrite(as.data.table(hapmap, keep.rownames = FALSE), 
+       file = paste(strsplit(vcf_file, "\\.")[[1]][1],"_hapmap.hmp.txt.gz", sep = ""),
        sep = "\t")
 
 # Message
@@ -212,6 +252,9 @@ print(paste(rep("#", nchar(print_text)), collapse = ""))
 Here I am taking the haplotyping file and writing out reports.
 
 ```{r making_reports}
+# make object
+auto_suggestions <- c()
+
 # For loop
 for (i in unique(key[,"Locus"])){
   
@@ -222,28 +265,371 @@ for (i in unique(key[,"Locus"])){
   temp2 <-  unlist(strsplit(temp1[,"Markers"], ":"))
   
   # Pull markers
-  temp3 <- as.data.frame(hapmap[rownames(hapmap) %in% temp2, ])
+  temp3 <- as.data.frame(hapmap[hapmap[,"rs#"] %in% temp2, ])
+  rownames(temp3) <- temp3[,1]
+  temp3 <- temp3[,12:ncol(temp3)]
   
   # Pull haplotypes
   if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
   if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
   if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
-  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}  
-
+  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
+  
+  # Check if auto call is requested
+  if(temp1[,"Auto"]==TRUE){
+    
+    # Check if positive calls are given
+    if(is.na(temp4[1])){
+      stop("It appears there are no positive haplotypes given for ", 
+           i,
+           ". There must be at least one positive haplotype defined for the 'Auto' feature.",
+           " Please check your inputs and resubmit!")
+    }
+    
+    # Pull number of missing
+    n.missing <- temp1[,"N_Missing"]
+    
+    # Check if number of missing is defined
+    if(is.na(n.missing) | !is.numeric(n.missing)){
+      stop("Number of tolerated missing calls must be defined and must be a number for ",
+           i,
+           "! Check the Column 'N_Missing' and resubmit!")
+    }
+    
+    # Check if the locus only has one marker 
+    if(length(temp2)==1){
+      stop("Only one defining marker detected for ",
+           i,
+           ". The 'Auto' function is only available for loci with multiple markers! ",
+           "Please define your haplotypes, set auto to 'FALSE', and resubmit.")
+    }
+     
+    # Get ref alt of each marker in iupac
+    ref_alt <- c()
+    
+    # Permutate through markers
+    for(j in rownames(temp3)){
+      temp1.1 <- as.character(temp3[j,])
+      temp1.1 <- unique(temp1.1)
+      temp1.2 <- temp1.1[grep("G",temp1.1)]
+      temp1.3 <- temp1.1[grep("T",temp1.1)]
+      temp1.4 <- temp1.1[grep("C",temp1.1)]
+      temp1.5 <- temp1.1[grep("A",temp1.1)]
+      temp1.6 <- temp1.1[grep("-",temp1.1)]
+      temp1.1 <- data.frame(Marker=j,
+                            G=ifelse(is.null(temp1.2), NA, temp1.2),
+                            `T`=ifelse(is.null(temp1.3), NA, temp1.3),
+                            C=ifelse(is.null(temp1.4), NA, temp1.4),
+                            A=ifelse(is.null(temp1.5), NA, temp1.5),
+                            gap=ifelse(is.null(temp1.6), NA, temp1.6))
+      temp1.1 <- temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)]
+      # Check if the maker is biallelic
+      if(ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])!=3 & ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])!=2){
+        stop("Marker ", 
+             j, 
+             " associated with locus ", 
+             i, 
+             " appears to be multiallelic rather than biallelic.",
+             " Calls can only be made in Auto mode with biallelic markers!",
+             " Please check your inputs and resubmit!")
+      }else if(ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])==2){
+        warning("Marker ", 
+                j, 
+                " associated with locus ", 
+                i, 
+                " appears to be monomorphic rather than biallelic.",
+                " Moving forward with assumption that the marker is dominant...")
+        temp1.1 <- cbind(temp1.1, NA)
+        colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
+        ref_alt <- rbind(ref_alt, temp1.1)
+        remove(temp1.1, temp1.2, temp1.3, temp1.4, temp1.5, temp1.6)
+      }else{
+        colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
+        ref_alt <- rbind(ref_alt, temp1.1)
+        remove(temp1.1, temp1.2, temp1.3, temp1.4, temp1.5, temp1.6) 
+      }
+    }
+  
+    # assign het call
+    ref_alt$Allele_Het <- paste(ref_alt[,"Allele_1"],
+                                "/",
+                                ref_alt[,"Allele_2"],
+                                sep = "")
+    ref_alt[ref_alt=="A/G"] = "R"
+    ref_alt[ref_alt=="G/A"] = "R"
+    ref_alt[ref_alt=="C/T"] = "Y"
+    ref_alt[ref_alt=="T/C"] = "Y"
+    ref_alt[ref_alt=="G/C"] = "S"
+    ref_alt[ref_alt=="C/G"] = "S"
+    ref_alt[ref_alt=="A/T"] = "W"
+    ref_alt[ref_alt=="T/A"] = "W"
+    ref_alt[ref_alt=="G/T"] = "K"
+    ref_alt[ref_alt=="T/G"] = "K"
+    ref_alt[ref_alt=="A/C"] = "M"
+    ref_alt[ref_alt=="C/A"] = "M"
+    
+    # assign dominant calls
+    ref_alt[ref_alt=="A/NA"] = NA
+    ref_alt[ref_alt=="G/NA"] = NA
+    ref_alt[ref_alt=="C/NA"] = NA
+    ref_alt[ref_alt=="T/NA"] = NA
+    
+    # Define positive allele
+    positive <- data.frame(Haplotype = temp4)
+    positive <- cbind(positive, matrix(data = unlist(strsplit(temp4, split = ":")),
+                                       nrow = nrow(positive),
+                                       byrow = TRUE))
+    positive[positive == "N"] <- NA
+    positive[positive == "R"] <- NA
+    positive[positive == "Y"] <- NA
+    positive[positive == "S"] <- NA
+    positive[positive == "W"] <- NA
+    positive[positive == "K"] <- NA
+    positive[positive == "M"] <- NA
+    positive <- na.omit(positive)
+    colnames(positive) <- c("Haplotype", ref_alt[,"Marker"])
+    
+    if(nrow(positive)==0){
+      stop("It appears that no positive cases for ",
+           i,
+           " are complete case!",
+           " Positive cases must contain at least one complete, homozygous sequence (e.g., A:G:T).",
+           " Check your inputs and resubmit!")
+    }
+    
+    # Define negative allele 
+    negative <- positive
+    
+    for(j in colnames(positive)[2:ncol(positive)]){
+      
+      # pull allele 
+      temp1.1 <- negative[,j]
+      
+      # pull corresponding marker
+      temp1.2 <- ref_alt[ref_alt[,"Marker"]==j,]
+      
+      # identify alternate 
+      temp1.3 <- ifelse(temp1.2[,"Allele_1"]==temp1.1, temp1.2[,"Allele_2"], temp1.2[,"Allele_1"])
+      
+      # replace NA
+      temp1.3 <- ifelse(is.na(temp1.3), "N", temp1.3)
+      
+      # rename
+      negative[,j] <- temp1.3
+      
+      # remove
+      remove(temp1.1, temp1.2, temp1.3)
+      
+    }
+  
+    # Define heterozygus cases
+    heterozygous <- as.character(ref_alt[,"Allele_Het"])
+    heterozygous <- paste(heterozygous, collapse = ":")
+    heterozygous <- data.frame(Haplotype=heterozygous,
+                               t(ref_alt[,"Allele_Het"]))
+    colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[,"Marker"]
+    
+    # if there are NAs which indicate that there is a dominant marker
+    if(length(unique(is.na(heterozygous)))!=1){
+      heterozygous<-c()
+      for(j in 1:nrow(ref_alt)){
+        if(is.na(ref_alt[j,"Allele_Het"])){
+          heterozygous<-c(heterozygous,ref_alt[j,"Allele_1"])
+        }else{
+          heterozygous<-c(heterozygous,ref_alt[j,"Allele_Het"])
+        }
+      }
+      heterozygous<-data.frame(Haplotype=paste(heterozygous, collapse = ":"),
+                               t(heterozygous))
+      colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[,"Marker"]
+    }
+    
+    # Define missing case
+    missing <- data.frame(Haplotype = paste(rep("N", length(2:ncol(heterozygous))), collapse = ":"),
+                          t(rep("N", length(2:ncol(heterozygous)))))
+    colnames(missing)[2:ncol(missing)] <- ref_alt[,"Marker"]
+    
+    # check if negative cases have N
+    if("N" %in% negative[,2:ncol(negative)]){
+      temp1.1 <- negative[,2:ncol(negative)]
+      temp1.1 <- colnames(temp1.1[,temp1.1=="N"])
+      dominant_markers <- temp1.1
+      remove(temp1.1)
+    }
+    
+    # Combine the cases
+    cases <- data.frame(Type=c("Positive", "Heterozygous", "Negative", "Missing"),
+                        rbind(positive, heterozygous, negative, missing))
+    
+    # Get every other possible combination
+    haplotypes <- expand.grid(cases[,3:ncol(cases)])
+    haplotypes[,1:ncol(haplotypes)] <- lapply(haplotypes[,1:ncol(haplotypes)], as.character) 
+    haplotypes <- unique(haplotypes)
+    
+    # make a list of deinfed haplotypes
+    for(j in 1:nrow(haplotypes)){
+      temp1.1 <- haplotypes[j,]
+      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
+      if(j==1){
+        temp1.2<-temp1.1
+      }else{
+        temp1.2<-c(temp1.2, temp1.1)
+      }
+      remove(temp1.1)
+    }
+    
+    haplotypes$Haplotype<-temp1.2
+    remove(temp1.2)
+    
+    # Give an innitial call to things which are defined
+    haplotypes[,"Call"] <- ifelse(haplotypes[,"Haplotype"] %in% temp4, "POS",
+                              ifelse(haplotypes[,"Haplotype"] %in% temp5, "HET",
+                                     ifelse(haplotypes[,"Haplotype"] %in% temp6, "NEG",
+                                            ifelse(haplotypes[,"Haplotype"] %in% temp7, "MISSING", NA))))
+    
+    #### If the sequence contains X number of N's call it missing
+    
+    # Empty vector
+    N_Missing <- c()
+    
+    # Count number of N in a string
+    for (j in 1:nrow(haplotypes)) {
+      N_Missing <- c(N_Missing, sum(unlist(gregexpr("N", haplotypes[j, "Haplotype"], fixed = TRUE)) > 0))
+    }
+    
+    # Report that 
+    haplotypes[,"N_Missing"] <- N_Missing
+    
+    # Assign missing if N is greater than n.missing
+    haplotypes[,"Call"] <- ifelse(haplotypes[,"N_Missing"]>n.missing, "MISSING", haplotypes[,"Call"])
+    
+    ### If the sequence is the same as the positive case but with a het call it het
+    
+    # make a list for heterozygous cases
+    check<-expand.grid(cases[c(1,2,4),c(3:ncol(cases))])
+    
+    # Make sure they are in correct format
+    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
+    
+    # Make haplotypes
+    for(j in 1:nrow(check)){
+      temp1.1 <- check[j,]
+      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
+      if(j==1){
+        temp1.2<-temp1.1
+      }else{
+        temp1.2<-c(temp1.2, temp1.1)
+      }
+      remove(temp1.1)
+    }
+    
+    # Bind in haplotypes
+    check[,"Haplotype"] <- temp1.2
+  
+    # Remove
+    remove(temp1.2)
+    
+    # Remove any cases that are already defined
+    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
+    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    remove(temp1.1)
+    
+    # Redefine
+    haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "HET"
+    
+    #### If the sequence contains at least one alternate of the positive case call it negative
+    
+    # make a list for negative cases
+    check<-expand.grid(cases[c(1,2,3,4),c(3:ncol(cases))])
+    
+    # Make sure they are in correct format
+    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
+    
+    # Make haplotypes
+    for(j in 1:nrow(check)){
+      temp1.1 <- check[j,]
+      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
+      if(j==1){
+        temp1.2<-temp1.1
+      }else{
+        temp1.2<-c(temp1.2, temp1.1)
+      }
+      remove(temp1.1)
+    }
+    
+    # Bind in haplotypes
+    check[,"Haplotype"] <- temp1.2
+    
+    # Remove
+    remove(temp1.2)
+    
+    # Remove any cases that are already defined
+    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
+    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    remove(temp1.1)
+    
+    # Redefine
+    if(exists("dominant_markers")){
+      check[,dominant_markers]=NA 
+      temp1.1 <- na.omit(check)
+      temp1.2 <- check[!complete.cases(check),]
+      haplotypes[haplotypes[,"Haplotype"] %in% temp1.1[,"Haplotype"],"Call"] <- "NEG"
+      haplotypes[haplotypes[,"Haplotype"] %in% temp1.2[,"Haplotype"],"Call"] <- "MISSING"
+      remove(temp1.1, temp1.2, dominant_markers)
+    }else{
+      haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "NEG"
+    }
+    
+    # Reconcatinate and report
+    for (j in unique(haplotypes[,"Call"])){
+      temp1.1 <- haplotypes[haplotypes[,"Call"]==j,]
+      temp1.1 <- as.character(temp1.1[,"Haplotype"])
+      temp1.1 <- paste(temp1.1, collapse = "_")
+      if(j=="POS"){
+        temp1[,"Pos"]<-temp1.1
+        remove(temp1.1)
+      }else if(j=="HET"){
+        temp1[,"Het"]<-temp1.1
+        remove(temp1.1)
+      }else if(j=="NEG"){
+        temp1[,"Neg"]<-temp1.1
+        remove(temp1.1)
+      }else if(j=="MISSING"){
+        temp1[,"Missing"]<-temp1.1
+        remove(temp1.1)
+      }
+    }
+    
+    # Pull haplotypes again
+    if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
+    if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
+    if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
+    if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
+    
+    # add to auto suggestions
+    auto_suggestions<-rbind(auto_suggestions, temp1)
+    
+    # Remove
+    remove(cases, check, haplotypes, heterozygous, missing, negative, positive, ref_alt)
+    
+  }
+  
   # For every individual in the hapmap
-  for (j in colnames(hapmap)){
+  for (j in colnames(temp3)){
     
     # Pull markers for individual
     temp8 <- temp3[,j]
     
     # Pull markers and collaps into a haplotype
     temp9 <- paste(temp8, collapse = ":")
-    
+      
     # Make call
     temp10 <- ifelse(temp9 %in% temp4, "POS",
                      ifelse(temp9 %in% temp5, "HET",
                             ifelse(temp9 %in% temp6, "NEG",
                                    ifelse(temp9 %in% temp7, NA, "UNIDENTIFIED"))))
+    
+        
     
     # Format into a dataframe
     temp11 <- data.frame(Line = j,
@@ -275,7 +661,7 @@ for (i in unique(key[,"Locus"])){
     colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""))
     
     # Check if this is the first line in the hapmap
-    if(j == colnames(hapmap)[1]){
+    if(j == colnames(temp3)[1]){
       
       # Make a new dataframe
       temp12<-temp11
@@ -315,7 +701,7 @@ for (i in unique(key[,"Locus"])){
 
 # Write out full report
 write.csv(marker_report,
-          "Marker_Report_Full.csv",
+          paste(strsplit(vcf_file, "\\.")[[1]][1],"_Marker_Report_Full.csv",sep = ""),
           row.names = FALSE,
           quote = TRUE)
 
@@ -328,7 +714,7 @@ colnames(marker_summary)<-gsub("_Summary", "", colnames(marker_summary))
 
 # Write out just summary
 write.csv(marker_summary,
-          "Marker_Report_Summary.csv",
+          paste(strsplit(vcf_file, "\\.")[[1]][1],"_Marker_Report_Summary.csv",sep = ""),
           row.names = FALSE,
           quote = TRUE)
 
@@ -381,7 +767,17 @@ if(!is.null(missing_haplotypes)){
  
   # Write out information
   write.csv(missing_haplotypes,
-            "Unidentified_Haplotypes.csv",
+            paste(strsplit(vcf_file, "\\.")[[1]][1],"_Unidentified_Haplotypes.csv",sep = ""),
+            row.names = FALSE,
+            quote = TRUE)  
+  
+}
+
+if(!is.null(auto_suggestions)){
+ 
+  # Write out information
+  write.csv(auto_suggestions,
+            paste(strsplit(vcf_file, "\\.")[[1]][1],"_Auto_Suggested_Haplotypes.csv",sep = ""),
             row.names = FALSE,
             quote = TRUE)  
   
