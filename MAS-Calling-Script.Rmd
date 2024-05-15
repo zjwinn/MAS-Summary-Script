@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This section checks if dependencies are installed, installs them if they are not present, and then library the packages required. 
 
-```{r library_packages}
+```{r library_packages, echo=FALSE}
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -39,7 +39,7 @@ library(knitr)
 
 Here I am setting the names of my inputs.
 
-```{r inputs}
+```{r inputs, echo=FALSE}
 # VCF file name
 vcf_file <- "Example.vcf.gz"
 
@@ -51,7 +51,7 @@ mas_key_file <- "Example_File.txt"
 
 Here I am using base R to read in a VCF and format it into a HapMap format to look at the allelic state of a the VCF markers.
 
-```{r hapmap_conversion}
+```{r hapmap_conversion, echo=FALSE}
 # Count lines that start with ##
 count_header_lines <- function(x) {
   # Open connection to file
@@ -305,7 +305,7 @@ print(paste(rep("#", nchar(print_text)), collapse = ""))
 
 Here I am taking the haplotyping file and writing out reports.
 
-```{r making_reports}
+```{r making_reports, echo=FALSE}
 # make object
 auto_suggestions <- c()
 
@@ -333,7 +333,6 @@ for (i in unique(key[,"Locus"])){
             i,
             " and moving to the next locus.",
             " If this is in error, check your VCF input marker names and your haplotyping key.")
-    message("#################################")
     next
   }
   
@@ -408,7 +407,6 @@ for (i in unique(key[,"Locus"])){
                 i, 
                 " appears to be monomorphic rather than biallelic.",
                 " Moving forward with assumption that the marker is dominant...")
-        message("#################################")
         temp1.1 <- cbind(temp1.1, NA)
         colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
         ref_alt <- rbind(ref_alt, temp1.1)
