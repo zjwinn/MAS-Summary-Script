@@ -122,55 +122,109 @@ vcf_to_hapmap <- function(x) {
     return(temp1)
     remove(temp1, temp2, temp3, temp4, temp5)
     
-  }else if (nchar(temp2)<nchar(temp3)){
-    
-    #print("DELETION")
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    temp1[temp1==paste(temp2, temp2, sep = "/")] = "-"
-    temp1[temp1==paste(temp3, temp3, sep = "/")] = "N"  
-    temp1[temp1=="./."] = "N"
-    temp1<-data.frame(`rs#` = temp4,
-                  alleles = "-",
-                  chrom = temp5[,"#CHROM"],
-                  pos = temp5[,"POS"],
-                  strand = "+",
-                  `assembly#` = "NA",
-                  center = "NA",
-                  protLSID = "NA",
-                  assayLSID = "NA",
-                  panelLSID = "NA",
-                  QCcode = "NA",
-                  temp1,
-                  check.names = FALSE,
-                  row.names = NULL)
-    return(temp1)
-    remove(temp1, temp2, temp3, temp4, temp5)
-    
-  }else if (nchar(temp2)>nchar(temp3)){
-
-    #print("INSERTION")
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    temp1[temp1==paste(temp2, temp2, sep = "/")] = substr(temp2, start = nchar(temp2), stop = nchar(temp2))
-    temp1[temp1=="./."] = "N"
-    temp1<-data.frame(`rs#` = temp4,
-                      alleles = substr(temp2, start = nchar(temp2), stop = nchar(temp2)),
-                      chrom = temp5[,"#CHROM"],
-                      pos = temp5[,"POS"],
-                      strand = "+",
-                      `assembly#` = "NA",
-                      center = "NA",
-                      protLSID = "NA",
-                      assayLSID = "NA",
-                      panelLSID = "NA",
-                      QCcode = "NA",
-                      temp1,
-                      check.names = FALSE,
-                      row.names = NULL)
-    return(temp1)
-    remove(temp1, temp2, temp3, temp4, temp5)
+  }else if (nchar(temp2)<nchar(temp3) | nchar(temp2)>nchar(temp3)){
         
+    #print("SNP")
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    
+    if(nchar(temp2)>nchar(temp3)){
+
+      # string
+      string <- paste(temp2, temp2, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- substr(temp2, start = nchar(temp3)+1, stop = nchar(temp3)+1)
+      
+      # string
+      string <- paste(temp2, temp3, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- 0
+      
+      # string
+      string <- paste(temp3, temp2, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- 0
+      
+      # string
+      string <- paste(temp3, temp3, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- "-"
+      
+      # replace
+      temp1[temp1=="./."] <- "N"
+      
+      # temp1
+      temp1<-data.frame(`rs#` = temp4,
+                        alleles = paste(substr(temp2, start = nchar(temp3)+1, stop = nchar(temp3)+1),"/-",sep = ""),
+                        chrom = temp5[,"#CHROM"],
+                        pos = temp5[,"POS"],
+                        strand = "+",
+                        `assembly#` = "NA",
+                        center = "NA",
+                        protLSID = "NA",
+                        assayLSID = "NA",
+                        panelLSID = "NA",
+                        QCcode = "NA",
+                        temp1,
+                        check.names = FALSE,
+                        row.names = NULL)
+    
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4, temp5, string)         
+        
+    }else if(nchar(temp2)<nchar(temp3)){
+      
+      # string
+      string <- paste(temp3, temp3, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- substr(temp3, start = nchar(temp2)+1, stop = nchar(temp2)+1)
+      
+      # string
+      string <- paste(temp2, temp3, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- 0
+      
+      # string
+      string <- paste(temp3, temp2, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- 0
+      
+      # string
+      string <- paste(temp2, temp2, sep = "/")
+      
+      # replace
+      temp1[temp1==string] <- "-"
+      
+      # replace
+      temp1[temp1=="./."] <- "N"
+      
+      # return          
+      temp1<-data.frame(`rs#` = temp4,
+                        alleles = paste("-/",substr(temp3, start = nchar(temp2)+1, stop = nchar(temp2)+1),sep = ""),
+                        chrom = temp5[,"#CHROM"],
+                        pos = temp5[,"POS"],
+                        strand = "+",
+                        `assembly#` = "NA",
+                        center = "NA",
+                        protLSID = "NA",
+                        assayLSID = "NA",
+                        panelLSID = "NA",
+                        QCcode = "NA",
+                        temp1,
+                        check.names = FALSE,
+                        row.names = NULL)
+      
+      return(temp1)
+      remove(temp1, temp2, temp3, temp4, temp5)   
+
+    }
   }
 }
 
@@ -244,6 +298,20 @@ for (i in unique(key[,"Locus"])){
   rownames(temp3) <- temp3[,1]
   temp3 <- temp3[,12:ncol(temp3)]
   
+  # Check if markers are found in both files
+  if(all(temp2 %in% rownames(temp3))==FALSE){
+    message("#################################")
+    message("Markers identified for ",
+            i,
+            " are not found HapMap.",
+            " Not producing call for locus ",
+            i,
+            " and moving to the next locus.",
+            " If this is in error, check your VCF input marker names and your haplotyping key.")
+    message("#################################")
+    next
+  }
+  
   # Pull haplotypes
   if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
   if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
@@ -308,12 +376,14 @@ for (i in unique(key[,"Locus"])){
              " Calls can only be made in Auto mode with biallelic markers!",
              " Please check your inputs and resubmit!")
       }else if(ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])==2){
-        warning("Marker ", 
+        message("#################################")
+        message("Marker ", 
                 j, 
                 " associated with locus ", 
                 i, 
                 " appears to be monomorphic rather than biallelic.",
                 " Moving forward with assumption that the marker is dominant...")
+        message("#################################")
         temp1.1 <- cbind(temp1.1, NA)
         colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
         ref_alt <- rbind(ref_alt, temp1.1)
@@ -700,7 +770,12 @@ missing_haplotypes <- c()
 for (i in unique(key[,"Locus"])){
  
   # Pull data
-  temp1 <- marker_report[,c("Line",colnames(marker_report)[grep(pattern = i, colnames(marker_report))])]
+  temp1 <- as.data.frame(marker_report[,c("Line",colnames(marker_report)[grep(pattern = i, colnames(marker_report))])])
+  
+  # if the locus isnt reported, skip over
+  if(ncol(temp1)==1){
+    next
+  }
   
   # Rename columns
   temp2 <- colnames(temp1)
