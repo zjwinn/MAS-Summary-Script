@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
+```{r setup_markdown, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This section checks if dependencies are installed, installs them if they are not present, and then library the packages required. 
 
-```{r library packages}
+```{r library_packages}
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -858,13 +858,4 @@ if(!is.null(auto_suggestions)){
             quote = TRUE)  
   
 }
-```
-
-# Purl out base R code for users without Rstudio
-
-Here I am using knitr to purl the R code in this markdown. This is so that users which are on systems which cannot use Rstudio can use this code in a base R installation.
-
-```{r purling_script}
-# Write out .R file if there is a .Rmd in current working directory
-if("MAS-Calling-Script.Rmd" %in% list.files()){knitr::purl("MAS-Calling-Script.Rmd")}
 ```

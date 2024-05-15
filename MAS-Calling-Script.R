@@ -2,7 +2,7 @@
 knitr::opts_chunk$set(echo = TRUE)
 
 
-## ----library---------------------------------------------------------------------------------------------------------------------
+## ----library packages------------------------------------------------------------------------------------------------------------
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -823,6 +823,7 @@ if(!is.null(missing_haplotypes)){
   
 }
 
+# Check if a file needs to be written out
 if(!is.null(auto_suggestions)){
  
   # Write out information
