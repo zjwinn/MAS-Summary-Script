@@ -305,7 +305,7 @@ print(paste(rep("#", nchar(print_text)), collapse = ""))
 
 Here I am taking the haplotyping file and writing out reports.
 
-```{r making_reports, echo=FALSE}
+```{r making_reports}
 # make object
 auto_suggestions <- c()
 
@@ -571,6 +571,40 @@ for (i in unique(key[,"Locus"])){
     # Assign missing if N is greater than n.missing
     haplotypes[,"Call"] <- ifelse(haplotypes[,"N_Missing"]>n.missing, "MISSING", haplotypes[,"Call"])
     
+    #### If the sequence contains same sequence as positive cases but with missing data then call pos
+    
+    # make a list for homozygous cases
+    check<-expand.grid(cases[c(1,4),c(3:ncol(cases))])
+     
+    # Make sure they are in correct format
+    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
+    
+    # Make haplotypes
+    for(j in 1:nrow(check)){
+      temp1.1 <- check[j,]
+      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
+      if(j==1){
+        temp1.2<-temp1.1
+      }else{
+        temp1.2<-c(temp1.2, temp1.1)
+      }
+      remove(temp1.1)
+    }
+    
+    # Bind in haplotypes
+    check[,"Haplotype"] <- temp1.2
+  
+    # Remove
+    remove(temp1.2)
+    
+    # Remove any cases that are already defined
+    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
+    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    remove(temp1.1)
+    
+    # Redefine
+    haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "POS"
+    
     ### If the sequence is the same as the positive case but with a het call it het
     
     # make a list for heterozygous cases
@@ -703,6 +737,7 @@ for (i in unique(key[,"Locus"])){
     temp11 <- data.frame(Line = j,
                          t(temp8),
                          temp9, 
+                         temp10,
                          temp10)
     
     # Pull optional annotations
@@ -726,7 +761,7 @@ for (i in unique(key[,"Locus"])){
     remove(temp13, temp14, temp15, temp16)
     
     # Make new column names
-    colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""))
+    colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""), paste(i, "_Summary_Annotated", sep = ""))
     
     # Check if this is the first line in the hapmap
     if(j == colnames(temp3)[1]){
@@ -774,11 +809,11 @@ write.csv(marker_report,
           quote = TRUE)
 
 # Pull column names
-columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary", colnames(marker_report))])
+columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary_Annotated", colnames(marker_report))])
 
 # Pull summary and rename
 marker_summary<-marker_report[,columns_to_pull]
-colnames(marker_summary)<-gsub("_Summary", "", colnames(marker_summary))
+colnames(marker_summary)<-gsub("_Summary_Annotated", "", colnames(marker_summary))
 
 # Write out just summary
 write.csv(marker_summary,
