@@ -95,7 +95,7 @@ key_markers <- unique(unlist(strsplit(key_markers, split = ":")))
 vcf <- vcf[vcf[,"ID"] %in% key_markers,]
 
 # Define a function to be executed in parallel
-vcf_to_hapmap <- function(x) {
+vcf_to_hapmap <- function(x, verbose=FALSE) {
   
   temp1 <- x
   temp2 <- temp1[,"REF"]
@@ -104,9 +104,10 @@ vcf_to_hapmap <- function(x) {
   temp5 <- temp1
   temp1 <- temp1[,10:ncol(temp1)]
   
+  #if the marker is a snp
   if(temp2 %in% c("A", "T", "G", "C") & temp3 %in% c("A", "T", "G", "C")){
 
-    #print("SNP")
+    if(verbose==TRUE){print("SNP")}
     temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
     temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
     temp1[temp1=="A/A"] = "A"
@@ -142,10 +143,11 @@ vcf_to_hapmap <- function(x) {
                       row.names = NULL)
     return(temp1)
     remove(temp1, temp2, temp3, temp4, temp5)
-    
+  
+  # if the marker is an indel    
   }else if (nchar(temp2)<nchar(temp3) | nchar(temp2)>nchar(temp3)){
         
-    #print("SNP")
+    if(verbose==TRUE){print("INDEL")}
     temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
     temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
     
@@ -244,8 +246,88 @@ vcf_to_hapmap <- function(x) {
       
       return(temp1)
       remove(temp1, temp2, temp3, temp4, temp5)   
-
     }
+  
+  # If the reference is a null allele    
+  }else if(temp2=="."){
+    
+    if(verbose==TRUE){print("DOMINANT")}
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    temp1[temp1=="A/A"] = "A"
+    temp1[temp1=="T/T"] = "T"
+    temp1[temp1=="C/C"] = "C"
+    temp1[temp1=="G/G"] = "G"
+    temp1[temp1=="A/G"] = "R"
+    temp1[temp1=="G/A"] = "R"
+    temp1[temp1=="C/T"] = "Y"
+    temp1[temp1=="T/C"] = "Y"
+    temp1[temp1=="G/C"] = "S"
+    temp1[temp1=="C/G"] = "S"
+    temp1[temp1=="A/T"] = "W"
+    temp1[temp1=="T/A"] = "W"
+    temp1[temp1=="G/T"] = "K"
+    temp1[temp1=="T/G"] = "K"
+    temp1[temp1=="A/C"] = "M"
+    temp1[temp1=="C/A"] = "M"
+    temp1[temp1=="./."] = "N"
+    temp1<-data.frame(`rs#` = temp4,
+                      alleles = temp3,
+                      chrom = temp5[,"#CHROM"],
+                      pos = temp5[,"POS"],
+                      strand = "+",
+                      `assembly#` = "NA",
+                      center = "NA",
+                      protLSID = "NA",
+                      assayLSID = "NA",
+                      panelLSID = "NA",
+                      QCcode = "NA",
+                      temp1,
+                      check.names = FALSE,
+                      row.names = NULL)
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4, temp5)
+  
+  # if the alt allele is a null allele   
+  }else if(temp3=="."){
+
+    if(verbose==TRUE){print("DOMINANT")}
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
+    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
+    temp1[temp1=="A/A"] = "A"
+    temp1[temp1=="T/T"] = "T"
+    temp1[temp1=="C/C"] = "C"
+    temp1[temp1=="G/G"] = "G"
+    temp1[temp1=="A/G"] = "R"
+    temp1[temp1=="G/A"] = "R"
+    temp1[temp1=="C/T"] = "Y"
+    temp1[temp1=="T/C"] = "Y"
+    temp1[temp1=="G/C"] = "S"
+    temp1[temp1=="C/G"] = "S"
+    temp1[temp1=="A/T"] = "W"
+    temp1[temp1=="T/A"] = "W"
+    temp1[temp1=="G/T"] = "K"
+    temp1[temp1=="T/G"] = "K"
+    temp1[temp1=="A/C"] = "M"
+    temp1[temp1=="C/A"] = "M"
+    temp1[temp1=="./."] = "N"
+    temp1<-data.frame(`rs#` = temp4,
+                      alleles = temp2,
+                      chrom = temp5[,"#CHROM"],
+                      pos = temp5[,"POS"],
+                      strand = "+",
+                      `assembly#` = "NA",
+                      center = "NA",
+                      protLSID = "NA",
+                      assayLSID = "NA",
+                      panelLSID = "NA",
+                      QCcode = "NA",
+                      temp1,
+                      check.names = FALSE,
+                      row.names = NULL)
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4, temp5)
+    
   }
 }
 
@@ -729,7 +811,7 @@ for (i in unique(key[,"Locus"])){
     temp10 <- ifelse(temp9 %in% temp4, "POS",
                      ifelse(temp9 %in% temp5, "HET",
                             ifelse(temp9 %in% temp6, "NEG",
-                                   ifelse(temp9 %in% temp7, NA, "UNIDENTIFIED"))))
+                                   ifelse(temp9 %in% temp7, "NA", "UNIDENTIFIED"))))
     
         
     
@@ -749,11 +831,11 @@ for (i in unique(key[,"Locus"])){
     # Format annotations
     if(is.na(temp11[,ncol(temp11)])==TRUE & is.na(temp16)==FALSE){
       temp11[,ncol(temp11)] <- temp16
-    }else if(temp11[,ncol(temp11)]=="POS" & is.na(temp13)==FALSE){
+    }else if(as.character(temp11[,ncol(temp11)])=="POS" & is.na(temp13)==FALSE){
       temp11[,ncol(temp11)] <- temp13
-    }else if(temp11[,ncol(temp11)]=="HET" & is.na(temp14)==FALSE){
+    }else if(as.character(temp11[,ncol(temp11)])=="HET" & is.na(temp14)==FALSE){
       temp11[,ncol(temp11)] <- temp14
-    }else if(temp11[,ncol(temp11)]=="NEG" & is.na(temp15)==FALSE){
+    }else if(as.character(temp11[,ncol(temp11)])=="NEG" & is.na(temp15)==FALSE){
       temp11[,ncol(temp11)] <- temp15
     }
     
@@ -761,7 +843,7 @@ for (i in unique(key[,"Locus"])){
     remove(temp13, temp14, temp15, temp16)
     
     # Make new column names
-    colnames(temp11) <- c("Line", rownames(temp3), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""), paste(i, "_Summary_Annotated", sep = ""))
+    colnames(temp11) <- c("Line", paste(i, rownames(temp3), sep = "_"), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""), paste(i, "_Summary_Annotated", sep = ""))
     
     # Check if this is the first line in the hapmap
     if(j == colnames(temp3)[1]){
@@ -795,12 +877,15 @@ for (i in unique(key[,"Locus"])){
   }else{
     
     # Else bind onto that new dataframe
-    marker_report<-merge(marker_report, temp12, by="Line")
+    marker_report<-suppressWarnings(merge(marker_report, temp12, by="Line"))
     
     # Remove temporary files
     remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
   }
 }
+
+# make NAs into NA
+marker_report[marker_report=="NA"]<-NA
 
 # Write out full report
 write.csv(marker_report,
