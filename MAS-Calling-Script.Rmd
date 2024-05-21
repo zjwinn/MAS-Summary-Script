@@ -41,10 +41,10 @@ Here I am setting the names of my inputs. These must be real paths to the file o
 
 ```{r inputs}
 # VCF file name
-vcf_file <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/outputs/merged.vcf.gz"
+vcf_file <- "Example.vcf.gz"
 
 # MAS key
-mas_key_file <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/inputs/hap_lookup_v4.1.txt"
+mas_key_file <- "Example_File.txt"
 
 # Verbose
 verbose <- TRUE
@@ -81,7 +81,7 @@ Here I am setting the file path of where I want my outputs to be written. This c
 
 ```{r output_directory}
 # Output directory string
-output_directory <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/outputs/"
+output_directory <- NA
 
 # Reassign if none is provided
 if(is.na(output_directory)){output_directory <- getwd()}
