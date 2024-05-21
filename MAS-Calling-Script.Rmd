@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This section checks if dependencies are installed, installs them if they are not present, and then library the packages required. 
 
-```{r library_packages, echo=FALSE}
+```{r library_packages}
 # Define a list of required packages
 required_packages <- c("parallel", "foreach", "doParallel", "data.table", "R.utils", "knitr")
 
@@ -39,12 +39,12 @@ library(knitr)
 
 Here I am setting the names of my inputs. These must be real paths to the file or they can be simple strings if the files are located in the directory. 
 
-```{r inputs, echo=FALSE}
+```{r inputs}
 # VCF file name
-vcf_file <- "Example.vcf.gz"
+vcf_file <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/outputs/merged.vcf.gz"
 
 # MAS key
-mas_key_file <- "Example_File.txt"
+mas_key_file <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/inputs/hap_lookup_v4.1.txt"
 
 # Verbose
 verbose <- TRUE
@@ -69,6 +69,9 @@ if(check1==FALSE){
   # Remove
   remove(check1, check2)
   
+  # Get name of outputs
+  output_name <- strsplit(basename(mas_key_file), "\\.")[[1]][1]
+  
 }
 ```
 
@@ -76,9 +79,9 @@ if(check1==FALSE){
 
 Here I am setting the file path of where I want my outputs to be written. This can be set to NA if you want the output to be in the current working directory. 
 
-```{r output_directory, echo=FALSE}
+```{r output_directory}
 # Output directory string
-output_directory <- NA
+output_directory <- "C:/Users/zwinn/OneDrive/USDA/Request_From_Jared_Smith/MAS_Reporting/MAS-Report-5-17-24/outputs/"
 
 # Reassign if none is provided
 if(is.na(output_directory)){output_directory <- getwd()}
@@ -89,6 +92,11 @@ if(file.exists(output_directory)==FALSE){
   # Exit with error
   stop("Following output directory does not exist: ", output_directory)    
   
+}else{
+  
+  # Make file path conform to R standards
+  output_directory <- file.path(output_directory)
+  
 }
 ```
 
@@ -96,7 +104,7 @@ if(file.exists(output_directory)==FALSE){
 
 Here I am using base R to read in a VCF and format it into a HapMap format to look at the allelic state of a the VCF markers.
 
-```{r hapmap_conversion, echo=FALSE}
+```{r hapmap_conversion}
 # Check verbose option
 if(verbose==TRUE){
   
@@ -452,7 +460,7 @@ remove(cl)
 
 # Write out hapmap
 fwrite(as.data.table(hapmap, keep.rownames = FALSE), 
-       file = paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_hapmap.hmp.txt.gz", sep = ""),
+       file = paste(output_directory, "/", output_name, "_hapmap.hmp.txt.gz", sep = ""),
        sep = "\t")
 
 # Check verbose option
@@ -1014,7 +1022,7 @@ if(verbose==TRUE){
 
 # Write out full report
 write.csv(marker_report,
-          paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Marker_Report_Full.csv", sep = ""),
+          paste(output_directory, "/", output_name, "_Marker_Report_Full.csv", sep = ""),
           row.names = FALSE,
           quote = TRUE)
 
@@ -1027,9 +1035,61 @@ colnames(marker_summary)<-gsub("_Summary_Annotated", "", colnames(marker_summary
 
 # Write out just summary
 write.csv(marker_summary,
-          paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Marker_Report_Summary.csv", sep = ""),
+          paste(output_directory, "/", output_name, "_Marker_Report_Summary.csv", sep = ""),
           row.names = FALSE,
           quote = TRUE)
+
+# Pull column names
+columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary", colnames(marker_report))])
+columns_to_pull <- columns_to_pull[-grep("Annotated", columns_to_pull)]
+
+# Pull marker summary calls without annotation
+marker_calls<-marker_report[,columns_to_pull]
+
+# summarize 
+for(i in colnames(marker_calls)[2:ncol(marker_calls)]){
+  
+  # pull data
+  temp1 <- marker_calls[,c(i)]
+  
+  # get table
+  temp2 <- as.data.table(table(temp1))
+  
+  # get summary
+  temp3 <- data.frame(gsub("_Summary", "",i),
+                      ifelse(nrow(temp2[temp2$temp1=="POS","N"])==0, 0, temp2[temp2$temp1=="POS","N"]),
+                      ifelse(nrow(temp2[temp2$temp1=="HET","N"])==0, 0, temp2[temp2$temp1=="HET","N"]),
+                      ifelse(nrow(temp2[temp2$temp1=="NEG","N"])==0, 0, temp2[temp2$temp1=="NEG","N"]),
+                      ifelse(nrow(temp2[temp2$temp1=="UNIDENTIFIED","N"])==0, 0, temp2[temp2$temp1=="UNIDENTIFIED","N"]),
+                      sum(is.na(temp1)),
+                      length(temp1))
+  colnames(temp3) <- c("Locus", "Positive_Count", "Heterozygous_Count", "Negative_Count", "Unidentified_Count", "Missing_Count", "Total_Sampled")
+  
+  # calculate statistics 
+  temp3$Positive_Freq <- round(temp3$Positive_Count/temp3$Total_Sampled, 2)
+  temp3$Heterozygous_Freq <- round(temp3$Heterozygous_Count/temp3$Total_Sampled, 2)
+  temp3$Negative_Freq <- round(temp3$Negative_Count/temp3$Total_Sampled, 2)
+  temp3$Unidentified_Freq <- round(temp3$Unidentified_Count/temp3$Total_Sampled, 2)
+  temp3$Missing_Freq <- round(temp3$Missing_Count/temp3$Total_Sampled, 2)
+  
+  # make dataframe
+  if(i==colnames(marker_calls)[2]){
+    marker_freq_report<-temp3
+  }else{
+    marker_freq_report<-rbind(marker_freq_report,temp3)
+  }
+  
+  # Remove
+  remove(temp1, temp2, temp3)
+  
+}
+
+# write out frequency report
+write.csv(marker_freq_report,
+          paste(output_directory, "/", output_name, "_Marker_Report_Statistics.csv", sep = ""),
+          row.names = FALSE,
+          quote = TRUE)  
+  
 
 # Get information
 missing_haplotypes <- c()
@@ -1085,7 +1145,7 @@ if(!is.null(missing_haplotypes)){
  
   # Write out information
   write.csv(missing_haplotypes,
-            paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Unidentified_Haplotypes.csv", sep = ""),
+            paste(output_directory, "/", output_name, "_Unidentified_Haplotypes.csv", sep = ""),
             row.names = FALSE,
             quote = TRUE)  
   
@@ -1096,7 +1156,7 @@ if(!is.null(auto_suggestions)){
  
   # Write out information
   write.csv(auto_suggestions,
-            paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Auto_Suggested_Haplotypes.csv", sep = ""),
+            paste(output_directory, "/", output_name, "_Auto_Suggested_Haplotypes.csv", sep = ""),
             row.names = FALSE,
             quote = TRUE)  
   
