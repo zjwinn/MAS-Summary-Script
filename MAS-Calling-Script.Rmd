@@ -37,7 +37,7 @@ library(knitr)
 
 # Set Input Files
 
-Here I am setting the names of my inputs.
+Here I am setting the names of my inputs. These must be real paths to the file or they can be simple strings if the files are located in the directory. 
 
 ```{r inputs, echo=FALSE}
 # VCF file name
@@ -45,6 +45,51 @@ vcf_file <- "Example.vcf.gz"
 
 # MAS key
 mas_key_file <- "Example_File.txt"
+
+# Verbose
+verbose <- TRUE
+
+# Check if files exist
+check1 <- file.exists(vcf_file)
+check2 <- file.exists(mas_key_file)
+
+# if 
+if(check1==FALSE){
+  
+  # Exit with error
+  stop("Following file path does not exist: ", vcf_file)
+  
+}else if(check2==FALSE){
+  
+  # Exit with error
+  stop("Following file path does not exist: ", mas_key_file)
+  
+}else{
+  
+  # Remove
+  remove(check1, check2)
+  
+}
+```
+
+# Set Output Directory
+
+Here I am setting the file path of where I want my outputs to be written. This can be set to NA if you want the output to be in the current working directory. 
+
+```{r output_directory, echo=FALSE}
+# Output directory string
+output_directory <- NA
+
+# Reassign if none is provided
+if(is.na(output_directory)){output_directory <- getwd()}
+
+# check if it is real
+if(file.exists(output_directory)==FALSE){
+
+  # Exit with error
+  stop("Following output directory does not exist: ", output_directory)    
+  
+}
 ```
 
 # Read in Data and Convert to HapMap
@@ -52,28 +97,58 @@ mas_key_file <- "Example_File.txt"
 Here I am using base R to read in a VCF and format it into a HapMap format to look at the allelic state of a the VCF markers.
 
 ```{r hapmap_conversion, echo=FALSE}
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Initializing script:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
+
+
 # Count lines that start with ##
 count_header_lines <- function(x) {
+  
   # Open connection to file
   con <- file(x, "r")
   # Set the number for first line
   header_lines <- 0
+  
   # While 
   while (TRUE) {
+    
     # Read in the line = 1
     line <- readLines(con, n = 1)
+    
     # If the line equal to zero 
     if (length(line) == 0) break  # Exit loop when end of file is reached
+    
     # If the line contains ##
     if (substr(line, 1, 2) == "##") {
+      
       # Add to length
       header_lines <- header_lines + 1
-    } else {
-      break  # Exit loop when non-header lines start
+    
+    # Else if the line does not contain ##
+    }else{
+      
+      # Exit loop when non-header lines start
+      break  
+      
     }
   }
+  
+  # Close the file you are reading 
   close(con)
+  
+  # Return the number of header lines
   return(header_lines)
+  
 }
 
 # Read vcf as table
@@ -340,13 +415,19 @@ cl <- makeCluster(num_cores)
 # Register the cluster
 registerDoParallel(cl)
 
-# Message
-print_text <- paste("### HapMap conversion start:", Sys.time(), "###") 
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### HapMap conversion start:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
 
-# Print
-print(paste(rep("#", nchar(print_text)), collapse = ""))
-print(print_text)
-print(paste(rep("#", nchar(print_text)), collapse = ""))
+}
+
 
 # For each
 hapmap <- foreach(i = 1:nrow(vcf), .combine = 'rbind') %dopar% {
@@ -371,16 +452,21 @@ remove(cl)
 
 # Write out hapmap
 fwrite(as.data.table(hapmap, keep.rownames = FALSE), 
-       file = paste(strsplit(vcf_file, "\\.")[[1]][1],"_hapmap.hmp.txt.gz", sep = ""),
+       file = paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_hapmap.hmp.txt.gz", sep = ""),
        sep = "\t")
 
-# Message
-print_text <- paste("### HapMap conversion stop:", Sys.time(), "###") 
-
-# Print
-print(paste(rep("#", nchar(print_text)), collapse = ""))
-print(print_text)
-print(paste(rep("#", nchar(print_text)), collapse = ""))
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### HapMap conversion stop:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
 ```
 
 # Get Report
@@ -390,6 +476,19 @@ Here I am taking the haplotyping file and writing out reports.
 ```{r making_reports}
 # make object
 auto_suggestions <- c()
+
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Generating marker report start:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
 
 # For loop
 for (i in unique(key[,"Locus"])){
@@ -887,9 +986,35 @@ for (i in unique(key[,"Locus"])){
 # make NAs into NA
 marker_report[marker_report=="NA"]<-NA
 
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Generating marker report stop:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
+
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Writing outputs start:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
+
 # Write out full report
 write.csv(marker_report,
-          paste(strsplit(vcf_file, "\\.")[[1]][1],"_Marker_Report_Full.csv",sep = ""),
+          paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Marker_Report_Full.csv", sep = ""),
           row.names = FALSE,
           quote = TRUE)
 
@@ -902,7 +1027,7 @@ colnames(marker_summary)<-gsub("_Summary_Annotated", "", colnames(marker_summary
 
 # Write out just summary
 write.csv(marker_summary,
-          paste(strsplit(vcf_file, "\\.")[[1]][1],"_Marker_Report_Summary.csv",sep = ""),
+          paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Marker_Report_Summary.csv", sep = ""),
           row.names = FALSE,
           quote = TRUE)
 
@@ -960,7 +1085,7 @@ if(!is.null(missing_haplotypes)){
  
   # Write out information
   write.csv(missing_haplotypes,
-            paste(strsplit(vcf_file, "\\.")[[1]][1],"_Unidentified_Haplotypes.csv",sep = ""),
+            paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Unidentified_Haplotypes.csv", sep = ""),
             row.names = FALSE,
             quote = TRUE)  
   
@@ -971,9 +1096,35 @@ if(!is.null(auto_suggestions)){
  
   # Write out information
   write.csv(auto_suggestions,
-            paste(strsplit(vcf_file, "\\.")[[1]][1],"_Auto_Suggested_Haplotypes.csv",sep = ""),
+            paste(output_directory, "/", strsplit(vcf_file, "\\.")[[1]][1], "_Auto_Suggested_Haplotypes.csv", sep = ""),
             row.names = FALSE,
             quote = TRUE)  
+  
+}
+
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Writing outputs stop:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  
+}
+
+# Check verbose option
+if(verbose==TRUE){
+  
+  # Message
+  print_text <- paste("### Script finished time:", Sys.time(), "###") 
+  
+  # Print
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
+  print(print_text)
+  print(paste(rep("#", nchar(print_text)), collapse = ""))
   
 }
 ```
