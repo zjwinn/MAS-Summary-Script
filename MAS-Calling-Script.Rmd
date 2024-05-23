@@ -482,9 +482,6 @@ if(verbose==TRUE){
 Here I am taking the haplotyping file and writing out reports.
 
 ```{r making_reports}
-# make object
-auto_suggestions <- c()
-
 # Check verbose option
 if(verbose==TRUE){
   
@@ -498,8 +495,20 @@ if(verbose==TRUE){
   
 }
 
-# For loop
-for (i in unique(key[,"Locus"])){
+# Set the number of cores to use
+num_cores <- detectCores()-1
+
+# Create a cluster
+cl <- makeCluster(num_cores)
+
+# Register the cluster
+registerDoParallel(cl)
+
+# For loop in parallel
+reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
+
+  # Alternate for sequential option
+  #for (i in unique(key[,"Locus"])){
   
   # Pull information
   temp1 <- key[key[,"Locus"]==i,]
@@ -514,15 +523,32 @@ for (i in unique(key[,"Locus"])){
   
   # Check if markers are found in both files
   if(all(temp2 %in% rownames(temp3))==FALSE){
-    message("#################################")
-    message("Markers identified for ",
-            i,
-            " are not found HapMap.",
-            " Not producing call for locus ",
-            i,
-            " and moving to the next locus.",
-            " If this is in error, check your VCF input marker names and your haplotyping key.")
-    next
+    
+    # Send Message for sequential option
+    # message("#################################")
+    # message("Markers identified for ",
+    #         i,
+    #         " are not found HapMap.",
+    #         " Not producing call for locus ",
+    #         i,
+    #         " and moving to the next locus.",
+    #         " If this is in error, check your VCF input marker names and your haplotyping key.")
+    
+    warning_message<-paste("Warning: Markers identified for ",
+                           i,
+                           " are not found HapMap.\n",
+                           " Not producing call for locus ",
+                           i,
+                           " and moving to the next locus.\n",
+                           " If this is in error, check your VCF input marker names and your haplotyping key!\n",
+                           sep = "")
+    
+    # Alternate for sequential option
+    # next
+    
+    #Return
+    return(warning_message)
+    
   }
   
   # Pull haplotypes
@@ -530,6 +556,9 @@ for (i in unique(key[,"Locus"])){
   if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
   if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
   if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
+  
+  #set auto_suggestions to null
+  auto_suggestions <- c()
   
   # Check if auto call is requested
   if(temp1[,"Auto"]==TRUE){
@@ -898,7 +927,7 @@ for (i in unique(key[,"Locus"])){
     if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
     
     # add to auto suggestions
-    auto_suggestions<-rbind(auto_suggestions, temp1)
+    auto_suggestions<-temp1
     
     # Remove
     remove(cases, check, haplotypes, heterozygous, missing, negative, positive, ref_alt)
@@ -972,23 +1001,131 @@ for (i in unique(key[,"Locus"])){
     }
   }
   
+  # Alternate for sequential option
   # Check if this is the first locus to be predicted
-  if(i == unique(key[,"Locus"])[1]){
+  # if(i == unique(key[,"Locus"])[1]){
+  #   
+  #   # Make a new dataframe
+  #   marker_report<-temp12
+  #   
+  #   # Remove temporary files
+  #   remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+  #   
+  # }else{
+  #   
+  #   # Else bind onto that new dataframe
+  #   marker_report<-suppressWarnings(merge(marker_report, temp12, by="Line"))
+  #   
+  #   # Remove temporary files
+  #   remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+  # }
+  
+  if(is.data.frame(auto_suggestions)==TRUE){
     
-    # Make a new dataframe
-    marker_report<-temp12
-    
-    # Remove temporary files
-    remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+    # return
+    return(list(Report = temp12, 
+                AutoSuggestions = temp1))
     
   }else{
+
+    # return
+    return(temp12)
     
-    # Else bind onto that new dataframe
-    marker_report<-suppressWarnings(merge(marker_report, temp12, by="Line"))
-    
-    # Remove temporary files
-    remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
   }
+    
+  # Remove temporary files
+  remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
+}
+
+# Stop the cluster
+stopCluster(cl)
+
+# Remove cluster
+remove(cl)
+
+# Set j externally
+j=0
+
+# Figure out where is the first full report
+for(i in 1:length(reports)){
+  
+  # Pull report
+  temp1 <- reports[[i]]
+  
+  # If it is a dataframe, report that index
+  if(is.data.frame(temp1)==TRUE){j=i}
+  
+  # If j is no longer 0, exit the loop
+  if(j!=0){break}
+  
+}
+
+# set k externally
+k=0
+
+# Figure out where is the first full report
+for(i in 1:length(reports)){
+  
+  # Pull report
+  temp1 <- names(reports[[i]])
+  
+  # If it is a dataframe, report that index
+  if(length(temp1)==2 & all(c("Report","AutoSuggestions") %in% temp1)){k=i}
+  
+  # If j is no longer 0, exit the loop
+  if(k!=0){break}
+  
+}
+
+# Now merge the parallel output
+for(i in j:length(reports)){
+  
+    # Pull report
+    temp1 <- reports[[i]]
+    
+    # If the report is not a dataframe
+    if(is.character(temp1)==TRUE){
+      
+      # Show message
+      cat("############################\n")
+      cat(temp1)
+      cat("############################\n")
+      
+      # Remove temp files
+      remove(temp1)
+      
+      # Go to next thing
+      next
+      
+    }else if(i==j & i!=k & is.data.frame(temp1)==TRUE){
+      
+      marker_report<-temp1
+      
+    }else if(i>j & i!=k & is.data.frame(temp1)==TRUE){
+      
+      # Merge marker report
+      marker_report<-suppressWarnings(merge(marker_report, temp1, by="Line"))
+      
+    }else if(i==j & i==k & is.list(temp1)==TRUE){
+      
+      auto_suggestions <- temp1[[2]]
+      marker_report<-temp1[[1]]
+      
+    }else if(i>j & i==k & is.list(temp1)==TRUE){
+      
+      auto_suggestions <- temp1[[2]]
+      marker_report<-suppressWarnings(merge(marker_report, temp1[[1]], by="Line"))
+      
+    }else if(i>j & i>=k & is.list(temp1)==TRUE){
+
+      auto_suggestions<-rbind(auto_suggestions, temp1[[2]])
+      marker_report<-suppressWarnings(merge(marker_report, temp1[[1]], by="Line"))
+      
+    }
+    
+    # Remove temp files
+    remove(temp1)
+  
 }
 
 # make NAs into NA
@@ -1060,17 +1197,25 @@ for(i in colnames(marker_calls)[2:ncol(marker_calls)]){
                       ifelse(nrow(temp2[temp2$temp1=="POS","N"])==0, 0, temp2[temp2$temp1=="POS","N"]),
                       ifelse(nrow(temp2[temp2$temp1=="HET","N"])==0, 0, temp2[temp2$temp1=="HET","N"]),
                       ifelse(nrow(temp2[temp2$temp1=="NEG","N"])==0, 0, temp2[temp2$temp1=="NEG","N"]),
-                      ifelse(nrow(temp2[temp2$temp1=="UNIDENTIFIED","N"])==0, 0, temp2[temp2$temp1=="UNIDENTIFIED","N"]),
                       sum(is.na(temp1)),
+                      ifelse(nrow(temp2[temp2$temp1=="UNIDENTIFIED","N"])==0, 
+                             0, 
+                             temp2[temp2$temp1=="UNIDENTIFIED","N"]),
                       length(temp1))
-  colnames(temp3) <- c("Locus", "Positive_Count", "Heterozygous_Count", "Negative_Count", "Unidentified_Count", "Missing_Count", "Total_Sampled")
+  colnames(temp3) <- c("Locus", 
+                       "Positive_Count", 
+                       "Heterozygous_Count", 
+                       "Negative_Count",
+                       "Missing_Count",
+                       "Unidentified_Count",
+                       "Total_Sampled")
   
   # calculate statistics 
   temp3$Positive_Freq <- round(temp3$Positive_Count/temp3$Total_Sampled, 2)
   temp3$Heterozygous_Freq <- round(temp3$Heterozygous_Count/temp3$Total_Sampled, 2)
   temp3$Negative_Freq <- round(temp3$Negative_Count/temp3$Total_Sampled, 2)
-  temp3$Unidentified_Freq <- round(temp3$Unidentified_Count/temp3$Total_Sampled, 2)
   temp3$Missing_Freq <- round(temp3$Missing_Count/temp3$Total_Sampled, 2)
+  temp3$Unidentified_Freq <- round(temp3$Unidentified_Count/temp3$Total_Sampled, 2)
   
   # make dataframe
   if(i==colnames(marker_calls)[2]){
