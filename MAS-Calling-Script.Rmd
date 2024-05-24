@@ -520,6 +520,7 @@ reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
   temp3 <- as.data.frame(hapmap[hapmap[,"rs#"] %in% temp2, ])
   rownames(temp3) <- temp3[,1]
   temp3 <- temp3[,12:ncol(temp3)]
+  temp3 <- temp3[temp2,]
   
   # Check if markers are found in both files
   if(all(temp2 %in% rownames(temp3))==FALSE){
