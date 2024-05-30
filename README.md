@@ -2,6 +2,11 @@
 
 ## Table of Contents
 
+- Introduction
+- Workflow
+- Sections of the script
+- Input files
+- Output files
 
 ## Introduction
 This script was written for the express purpose of taking a variant calling format (VCF) file and a haplotyping file (tab delimited file) to produce a marker assisted selection (MAS) report. Below is a summary of the code and its functions.
@@ -56,7 +61,7 @@ This file contains twelve columns and all are required to run the code properly:
 All columns are case sensitive and all columns must be found in the haplotyping key file to get this code to run properly.
 
 ## Output files
-The script functions by taking **the name of your haplotyping key file and assigning that as the string prior to a file name**. In the below script where you see **i**, this will stand in place of the name of your haplotyping key file
+The script functions by taking **the name of your haplotyping key file and assigning that as the string prior to a file name**. In the below script where you see **i**, this will stand in place of the name of your haplotyping key file:
 
 1. **i**_hapmap.hmp.gz (compressed hapmap file)
     - A hapmap file ([here is an example of a hapmap format](https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/#:~:text=The%20Hapmap%20file%20format%20is%20a%20table%20which,Hapmap%20file%20by%20chromosome%20or%20a%20general%20file.)) of the selected markers for haplotyping indicated by the user's haplotyping key input file. 
