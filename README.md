@@ -97,10 +97,48 @@ The R script functions by taking **the name of your haplotyping key file and ass
 
 ## Automatic haplotype calling: how does it work?
 
-A custom algorithm for calling biallelic loci was derived for this exact purpose in the provided R code. As N number of loci goes to $\infty$ so too does the number of potential combinations. In fact the number of potential haplotypes at a locus with more than three markers can be generalized to the following equation:  
+A custom algorithm for calling biallelic loci was derived for this exact purpose in the provided R code. As N number of loci goes to infinity so too does the number of potential combinations. In fact the number of potential haplotypes at a biallelic locus (including missing data) can become gigantic quickly!    
 
-$$\binom{n}{r} = \frac{n!}{r!(n-r)!}$$  
+Here is an example of some R code that can show you how many combinations you get with defining a haplotype with only three markers:  
 
-Where:
-- n is the total number of distinct items.
-- r is the number of items to choose.
+```R
+temp1 <- data.frame(m1=c("A","R","G","N"),                    
+                    m2=c("A","R","G","N"),
+                    m3=c("A","R","G","N"))
+
+temp1 <- expand.grid(temp1)
+
+temp1$haplotype <- paste(temp1$m1, temp1$m2, temp1$m3, sep = ":")
+
+print(length(temp1$haplotype))
+```
+
+As you can see, if you only have three markers in a region to define a gene or quantative trait locus (QTL) the number of potential haplotypes inflates to 64. This becomes worse with four, five, or more markers to define a locus. Clearly, no one has the time to notate every possible haplotype for a QTL containing three or more markers, so there must be some way to handle that. 
+
+In the case of any larger region that a user is characterizing, there are several assumptions we have made with our algorithm:
+
+1. The only true positive case is a complete case haplotype (e.g., A:G:T:G:A:C:C) with no missing data.
+2. There is some missing level of data that the user is willing to tollerate (e.g., A:G:N:G:A:C:C with a single missing marker at position three) to make a positive call.
+3. A single heterozygous marker in a region may cause recombination, which means that the major locus must be called as heterozygous if it has some combination of positive and heterozygous markers (e.g., A:G:Y:W:A:C:C where positions three and four are in the heterozygous state).
+4. A single marker associated with the alternative allele of the positive case within a region could indicate that recombination has occured and the individual may not possess the causal polymorphism which confers the trait of interest (e.g., A:G:C:G:A:C:C where the third position is C instead of T). Therefore, to take a conservative approach to calssification, we call that individual negative.
+5. If there is some level of missing data greater that the threshold defined by the user (e.g., N_Missing = 1), then that call is considered missing (e.g., A:G:N:N:N:N:C which has four missing markers)
+
+In the case of the algorithm we have proposed, the user only needs to define **a single complete-case positive example in the 'Pos' column**. This means to use the algorithm we have proposed above that the user must provide a sequence free of heterozygous loci and missing data. Here are some unacceptable examples:
+
+- N:G:G
+- Y:G:G
+- G:G:G:T:G:N:C:C
+
+In the case of setting a locus to Auto==TRUE, the user must provide this complete-case positive example and set the tolerable number of missing data in the N_Missing column. In simplest terms, the auto function does the following with this information provided:
+
+1. Identify the true positive case
+2. Identify the true negative case
+3. Impute the true heterozygous case
+4. Inutit the number of missing markers possible
+5. Create every possible haplotype at the locus
+6. Identify which haplotypes have too many missing markers and call them missing
+7. Identify which haplotype are positive cases that have a tollerable number of missing markers and call them positive
+8. Identify which heterozygous cases contain only missing, positive, and heterozygous marker and call them heterozygous
+9. Identify all cases which contain at least one negative case marker and call them negative
+
+Once this process has been completed, the output is then used to deliniate what haplotype an indivdual has and assign it to them. 
