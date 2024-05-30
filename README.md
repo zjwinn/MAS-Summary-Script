@@ -76,14 +76,14 @@ The custom haplotyping key file has a unique structure that allows for a single 
 12. Missing_Annot
     - Pos, Het, Neg, and Missing "_Annot" are annotation the user wishes to assign to the positive, heterozygous, negative, and missing cases. These annotations may be left blank if the user wants the default assignments (e.g., POS, HET, NEG, and NA) however this may not be appropriate for all cases. For resistance loci, like *Fhb1*, perhaps the default assignments make sense. However, a locus where the deliniation between states is not straight forward (e.g., The 3A color locus for wheat which deliniates white vs. red seed color) may require further explanation. These columns allow for POS, HET, NEG, and NA to be reported in a more intuitive way (e.g, 'Red', 'Pink', 'White', and 'Did not amplify').   
 
-All columns are case sensitive and all columns must be present in the haplotype key file to get this code to run properly. [An example file of a 'haplotype key file' is provided along with this script.](https://github.com/zjwinn/MAS-Summary-Script/blob/master/Example_File.txt)
+All columns are case sensitive and all columns must be present in the haplotype key file to get this code to run properly. [An example of a 'haplotype key file' is provided along with this script.](https://github.com/zjwinn/MAS-Summary-Script/blob/master/Example_File.txt)
 
 ## Output files
 
 The R script functions by taking **the name of your haplotyping key file and assigning that as the string prior to a file name**. In the below script where you see **i**, this will stand in place of the name of your haplotyping key file:
 
 1. **i**_hapmap.hmp.gz (compressed hapmap file)
-    - A HapMap file ([here is an example of a HapMap format](https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/#:~:text=The%20Hapmap%20file%20format%20is%20a%20table%20which,Hapmap%20file%20by%20chromosome%20or%20a%20general%20file.)) of the selected markers for haplotyping indicated by the user's haplotyping key input file. 
+    - A HapMap file ([here is an explaination of what HapMap format is](https://statgen-esalq.github.io/Hapmap-and-VCF-formats-and-its-integration-with-onemap/#:~:text=The%20Hapmap%20file%20format%20is%20a%20table%20which,Hapmap%20file%20by%20chromosome%20or%20a%20general%20file.)) of the selected markers for haplotyping indicated by the user's haplotyping key input file. 
 2. **i**_Marker_Report_Full.csv (comma seperated value file)
     - This file contains the markers used to make major locus haplotype calls, the resultant haplotype string associated with a major locus call, the summary of the call (POS, HET, NEG, NA, UNIDENTIFIED), and the annotated summary of the call.
 3. **i**_Marker_Report_Summary.csv (comma seperated value file)
@@ -97,3 +97,10 @@ The R script functions by taking **the name of your haplotyping key file and ass
 
 ## Automatic haplotype calling: how does it work?
 
+A custom algorithm for calling biallelic loci was derived for this exact purpose in the provided R code. As N number of loci goes to $\infty$ so too does the number of potential combinations. In fact the number of potential haplotypes at a locus with more than three markers can be generalized to the following equation:
+$$
+\binom{n}{r} = \frac{n!}{r!(n-r)!}
+$$
+Where:
+- n is the total number of distinct items.
+- r is the number of items to choose.
