@@ -97,10 +97,10 @@ The R script functions by taking **the name of your haplotyping key file and ass
 
 ## Automatic haplotype calling: how does it work?
 
-A custom algorithm for calling biallelic loci was derived for this exact purpose in the provided R code. As N number of loci goes to $\infty$ so too does the number of potential combinations. In fact the number of potential haplotypes at a locus with more than three markers can be generalized to the following equation:
-$$
-\binom{n}{r} = \frac{n!}{r!(n-r)!}
-$$
+A custom algorithm for calling biallelic loci was derived for this exact purpose in the provided R code. As N number of loci goes to $\infty$ so too does the number of potential combinations. In fact the number of potential haplotypes at a locus with more than three markers can be generalized to the following equation:  
+
+$$\binom{n}{r} = \frac{n!}{r!(n-r)!}$$  
+
 Where:
 - n is the total number of distinct items.
 - r is the number of items to choose.
