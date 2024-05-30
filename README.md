@@ -117,11 +117,16 @@ As you can see, if you only have three markers in a region to define a gene or q
 
 In the case of any larger region that a user is characterizing, there are several assumptions we have made with our algorithm:
 
-1. The only true positive case is a complete case haplotype (e.g., A:G:T:G:A:C:C) with no missing data.
-2. There is some missing level of data that the user is willing to tollerate (e.g., A:G:N:G:A:C:C with a single missing marker at position three) to make a positive call.
-3. A single heterozygous marker in a region may cause recombination, which means that the major locus must be called as heterozygous if it has some combination of positive and heterozygous markers (e.g., A:G:Y:W:A:C:C where positions three and four are in the heterozygous state).
-4. A single marker associated with the alternative allele of the positive case within a region could indicate that recombination has occured and the individual may not possess the causal polymorphism which confers the trait of interest (e.g., A:G:C:G:A:C:C where the third position is C instead of T). Therefore, to take a conservative approach to calssification, we call that individual negative.
-5. If there is some level of missing data greater that the threshold defined by the user (e.g., N_Missing = 1), then that call is considered missing (e.g., A:G:N:N:N:N:C which has four missing markers)
+1. The only true positive case is a complete case haplotype with no missing data.
+    - E.G., A:G:T:G:A:C:C
+2. There is some missing level of data that the user is willing to tollerate to make a positive call.
+    - E.G., A:G:N:G:A:C:C is still called positive even with a single missing marker at position three.
+3. A single heterozygous marker in a region may cause recombination, which means that the major locus must be called as heterozygous if it has some combination of positive and heterozygous markers. 
+    - E.G., A:G:Y:W:A:C:C is called heterozygous even though all other loci are in the true positive confromation because positions three and four are in the heterozygous state.
+4. A single marker associated with the alternative allele of the positive case within a region could indicate that recombination has occured and the individual may not possess the causal polymorphism which confers the trait of interest. Therefore, to take a conservative approach to calssification, we call that individual negative.
+    - E.G., A:G:C:G:A:C:C is called negative even though most markers are in the positive conformation because the third position is C instead of T and C is associated with the negative case.
+5. If there is some level of missing data greater that the threshold defined by the user, then that call is considered missing.
+    - E.G., A:G:N:N:N:N:C has four missing markers which may be higher than a user is willing to tollerate.
 
 In the case of the algorithm we have proposed, the user only needs to define **a single complete-case positive example in the 'Pos' column**. This means to use the algorithm we have proposed above that the user must provide a sequence free of heterozygous loci and missing data. Here are some unacceptable examples:
 
