@@ -2,11 +2,11 @@
 
 ## Table of Contents
 
-- Introduction
-- Workflow
-- Sections of the script
-- Input files
-- Output files
+- [Introduction](#Introduction)
+- [Workflow](#Workflow)
+- [Sections of the script](#Sections-of-the-script)
+- [Input files](#Input-files)
+- [Output files](#Output-files)
 
 ## Introduction
 This script was written for the express purpose of taking a variant calling format (VCF) file and a haplotyping file (tab delimited file) to produce a marker assisted selection (MAS) report. Below is a summary of the code and its functions.
