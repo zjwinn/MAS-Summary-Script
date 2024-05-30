@@ -60,7 +60,7 @@ The custom haplotyping key file has a unique structure that allows for a single 
 1. Locus
     - This is a unique identifyer that will follow your major locus designation. This must be unique from all other loci in the haplotyping file. There can be as many loci as desired, meaning that the haplotying file will have n rows based on n number of loci reported.
 2. Auto
-    - This is a boolean column with the option of TRUE and FALSE. This option indicates if the user wishes to use the auto function for locus calling ([auto is explained in a later section](#Automatic-haplotype-calling:-how-does-it-work?)). This column can must be present in the file and the options must be either TRUE or FALSE. 
+    - This is a boolean column with the option of TRUE and FALSE. This option indicates if the user wishes to use the auto function for locus calling ([auto is explained in a later section](#automatic-haplotype-calling-how-does-it-work)). This column can must be present in the file and the options must be either TRUE or FALSE. 
 3. N_Missing
     - This is a numeric argument which may be interpreted as the following: "If I am using the auto function to call my loci, how many missing loci am I willing to tollerate". For example, if the user is calling a major locus using four markers, they may wish to still provide a call individuals missing data for one marker. Thus N_Missing would equal one in this case. If this collumn is left blank, then it will be considered zero.  
 4. Markers
@@ -91,7 +91,7 @@ The R script functions by taking **the name of your haplotyping key file and ass
 4. **i**_Unidentified_Haplotypes.csv (comma seperated value file)
     - This file will only be produced if there are "UNIDENTIFIED" haplotypes associated with a major locus. This file is meant to help individuals debugging their own haplotype formatted file.
 5. **i**_Auto_Suggested_Haplotypes.csv (comma seperated value file)
-    - If the user indicates that any locus must be automatically called ([see automatic haplotype calling section for further explanation](#Automatic-haplotype-calling:-how-does-it-work?)), then this file will be produced. This file contains all the automatic calls made and all suggested haplotype classifications. 
+    - If the user indicates that any locus must be automatically called ([see automatic haplotype calling section for further explanation](#automatic-haplotype-calling-how-does-it-work)), then this file will be produced. This file contains all the automatic calls made and all suggested haplotype classifications. 
 6. **i**_Marker_Report_Statistics.csv (comma seperated value file)
     - This output shows the counts and frequencies of haplotypes assigned for a major locus.
 
