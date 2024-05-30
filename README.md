@@ -10,7 +10,7 @@
     - [3. Producing MAS report for major loci](#3.-Producing-MAS-report-for-major-loci)
 - [Input files](#Input-files)
     - [1. VCF input file](#1.-VCF-input-file)
-    - [2. Haplotyping key file](#2.-Haplotyping-key-file)
+    - [2. Haplotype key file](#2.-Haplotype-key-file)
 - [Output files](#Output-files)
 - [Automatic haplotype calling: how does it work?](#automatic-haplotype-calling-how-does-it-work)
 
@@ -53,7 +53,7 @@ There are two input files for this script:
 
 Variant calling format files have specific and rigorous standards. To review proper VCF format [see this link](https://samtools.github.io/hts-specs/VCFv4.2.pdf). A haplotype "call" will be provided for every individual in this VCF. 
 
-### 2. Haplotyping key file
+### 2. Haplotype key file
 
 The custom haplotyping key file has a unique structure that allows for a single input file to make haplotype "calls". This file contains twelve columns and all are required to run the code properly:
 
