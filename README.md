@@ -5,14 +5,14 @@
 - [Introduction](#Introduction)
 - [Overall Workflow](#Workflow)
 - [Sections of the script](#Sections-of-the-script)
-    -[1. Setting input files](#1.-Setting-input-files)
-    -[2. Converting VCF to HapMap file](#2.-Converting-VCF-to-HapMap-file)
-    -[3. Producing MAS report for major loci](#3.-Producing-MAS-report-for-major-loci)
+    - [1. Setting input files](#1.-Setting-input-files)
+    - [2. Converting VCF to HapMap file](#2.-Converting-VCF-to-HapMap-file)
+    - [3. Producing MAS report for major loci](#3.-Producing-MAS-report-for-major-loci)
 - [Input files](#Input-files)
-    -[1. VCF input file](#1.-VCF-input-file)
-    -[2. Haplotyping key file](#2.-Haplotyping-key-file)
+    - [1. VCF input file](#1.-VCF-input-file)
+    - [2. Haplotyping key file](#2.-Haplotyping-key-file)
 - [Output files](#Output-files)
-- [Automatic haplotype calling: how does it work?](#Automatic-haplotype-calling:-how-does-it-work?)
+- [Automatic haplotype calling: how does it work?](#Automatic-haplotype-calling:-how-does-it-work)
 
 ## Introduction
 This script was written for the express purpose of taking a variant calling format (VCF) file and a haplotyping file (tab delimited file) to produce a marker assisted selection (MAS) report. Below is a summary of the code and its functions.
