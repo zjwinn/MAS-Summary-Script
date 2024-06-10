@@ -21,7 +21,7 @@ This script was written for the express purpose of taking a variant calling form
 The script in this repository follows the proposed workflow:
 
 1. Read in a VCF with known informative markers (KIMs)
-2. Use a haplotyping file (format explained in later section) to identify haplotype of interest for specific major loci
+2. Use a haplotyping file ([format explained in later section](#2-haplotype-key-file)) to identify haplotype of interest for specific major loci
 3. Report a detailed summary of major loci, associated KIMs, and produce a debugging dataframe to identify non-specified haplotypes for major loci
 
 ## Sections of the script
