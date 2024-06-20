@@ -504,6 +504,12 @@ cl <- makeCluster(num_cores)
 # Register the cluster
 registerDoParallel(cl)
 
+# If duplicated
+if(any(duplicated(key[,"Locus"]))==TRUE){
+  # Throw error message and stop
+  stop("There appears to be duplicated loci in the key file. Please check your inputs!")
+}
+
 # For loop in parallel
 reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
 
@@ -519,6 +525,12 @@ reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
   # Pull markers
   temp3 <- as.data.frame(hapmap[hapmap[,"rs#"] %in% temp2, ])
   rownames(temp3) <- temp3[,1]
+  
+  # Pull marker call in second collumn
+  temp3.1 <- c(temp3[,2])
+  names(temp3.1) <- temp3[,1]
+  
+  # Finish pulling makrers
   temp3 <- temp3[,12:ncol(temp3)]
   temp3 <- temp3[temp2,]
   
@@ -595,8 +607,7 @@ reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
     
     # Permutate through markers
     for(j in rownames(temp3)){
-      temp1.1 <- as.character(temp3[j,])
-      temp1.1 <- unique(temp1.1)
+      temp1.1 <- unlist(strsplit(temp3.1[j], "/"))
       temp1.2 <- temp1.1[grep("G",temp1.1)]
       temp1.3 <- temp1.1[grep("T",temp1.1)]
       temp1.4 <- temp1.1[grep("C",temp1.1)]
