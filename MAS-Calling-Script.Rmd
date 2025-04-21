@@ -41,10 +41,10 @@ Here I am setting the names of my inputs. These must be real paths to the file o
 
 ```{r inputs}
 # VCF file name
-vcf_file <- "Example.vcf.gz"
+vcf_file <- file.path(getwd(), "Example.vcf.gz")
 
 # MAS key
-mas_key_file <- "Example_File.txt"
+mas_key_file <- file.path(getwd(), "Example_File.txt")
 
 # Verbose
 verbose <- TRUE
@@ -53,25 +53,19 @@ verbose <- TRUE
 check1 <- file.exists(vcf_file)
 check2 <- file.exists(mas_key_file)
 
-# if 
-if(check1==FALSE){
-  
+# if
+if (check1 == FALSE) {
   # Exit with error
   stop("Following file path does not exist: ", vcf_file)
-  
-}else if(check2==FALSE){
-  
+} else if (check2 == FALSE) {
   # Exit with error
   stop("Following file path does not exist: ", mas_key_file)
-  
-}else{
-  
+} else {
   # Remove
   remove(check1, check2)
-  
+
   # Get name of outputs
   output_name <- strsplit(basename(mas_key_file), "\\.")[[1]][1]
-  
 }
 ```
 
@@ -84,19 +78,17 @@ Here I am setting the file path of where I want my outputs to be written. This c
 output_directory <- NA
 
 # Reassign if none is provided
-if(is.na(output_directory)){output_directory <- getwd()}
+if (is.na(output_directory)) {
+  output_directory <- getwd()
+}
 
 # check if it is real
-if(file.exists(output_directory)==FALSE){
-
+if (file.exists(output_directory) == FALSE) {
   # Exit with error
-  stop("Following output directory does not exist: ", output_directory)    
-  
-}else{
-  
+  stop("Following output directory does not exist: ", output_directory)
+} else {
   # Make file path conform to R standards
   output_directory <- file.path(output_directory)
-  
 }
 ```
 
@@ -106,316 +98,335 @@ Here I am using base R to read in a VCF and format it into a HapMap format to lo
 
 ```{r hapmap_conversion}
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Initializing script:", Sys.time(), "###") 
-  
+  print_text <- paste("### Initializing script:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 
 
 # Count lines that start with ##
 count_header_lines <- function(x) {
-  
   # Open connection to file
   con <- file(x, "r")
   # Set the number for first line
   header_lines <- 0
-  
-  # While 
+
+  # While
   while (TRUE) {
-    
     # Read in the line = 1
     line <- readLines(con, n = 1)
-    
-    # If the line equal to zero 
-    if (length(line) == 0) break  # Exit loop when end of file is reached
-    
+
+    # If the line equal to zero
+    if (length(line) == 0) break # Exit loop when end of file is reached
+
     # If the line contains ##
     if (substr(line, 1, 2) == "##") {
-      
       # Add to length
       header_lines <- header_lines + 1
-    
-    # Else if the line does not contain ##
-    }else{
-      
+
+      # Else if the line does not contain ##
+    } else {
       # Exit loop when non-header lines start
-      break  
-      
+      break
     }
   }
-  
-  # Close the file you are reading 
+
+  # Close the file you are reading
   close(con)
-  
+
   # Return the number of header lines
   return(header_lines)
-  
 }
 
 # Read vcf as table
 vcf <- as.data.frame(data.table::fread(input = vcf_file, skip = count_header_lines(vcf_file)))
 
 # Remove the first row if it was a header row
-vcf[,10:ncol(vcf)] <- lapply(vcf[,10:ncol(vcf)], function(x){substr(x, 1, 3)}) 
+vcf[, 10:ncol(vcf)] <- lapply(vcf[, 10:ncol(vcf)], function(x) {
+  substr(x, 1, 3)
+})
 
-# Read in MAS key 
+# Read in MAS key
 key <- read.table(mas_key_file, sep = "\t", header = TRUE, na.strings = c("", "NA"))
 
 # Key markers
-key_markers <- key[,"Markers"]
+key_markers <- key[, "Markers"]
 
 # Sting separate and unique markers
 key_markers <- unique(unlist(strsplit(key_markers, split = ":")))
 
 # subset
-vcf <- vcf[vcf[,"ID"] %in% key_markers,]
+vcf <- vcf[vcf[, "ID"] %in% key_markers, ]
 
 # Define a function to be executed in parallel
-vcf_to_hapmap <- function(x, verbose=FALSE) {
-  
+vcf_to_hapmap <- function(x, verbose = FALSE) {
   temp1 <- x
-  temp2 <- temp1[,"REF"]
-  temp3 <- temp1[,"ALT"]
-  temp4 <- temp1[,"ID"]
+  temp2 <- temp1[, "REF"]
+  temp3 <- temp1[, "ALT"]
+  temp4 <- temp1[, "ID"]
   temp5 <- temp1
-  temp1 <- temp1[,10:ncol(temp1)]
-  
-  #if the marker is a snp
-  if(temp2 %in% c("A", "T", "G", "C") & temp3 %in% c("A", "T", "G", "C")){
+  temp1 <- temp1[, 10:ncol(temp1)]
 
-    if(verbose==TRUE){print("SNP")}
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    temp1[temp1=="A/A"] = "A"
-    temp1[temp1=="T/T"] = "T"
-    temp1[temp1=="C/C"] = "C"
-    temp1[temp1=="G/G"] = "G"
-    temp1[temp1=="A/G"] = "R"
-    temp1[temp1=="G/A"] = "R"
-    temp1[temp1=="C/T"] = "Y"
-    temp1[temp1=="T/C"] = "Y"
-    temp1[temp1=="G/C"] = "S"
-    temp1[temp1=="C/G"] = "S"
-    temp1[temp1=="A/T"] = "W"
-    temp1[temp1=="T/A"] = "W"
-    temp1[temp1=="G/T"] = "K"
-    temp1[temp1=="T/G"] = "K"
-    temp1[temp1=="A/C"] = "M"
-    temp1[temp1=="C/A"] = "M"
-    temp1[temp1=="./."] = "N"
-    temp1<-data.frame(`rs#` = temp4,
-                      alleles = paste(temp2,"/",temp3,sep = ""),
-                      chrom = temp5[,"#CHROM"],
-                      pos = temp5[,"POS"],
-                      strand = "+",
-                      `assembly#` = "NA",
-                      center = "NA",
-                      protLSID = "NA",
-                      assayLSID = "NA",
-                      panelLSID = "NA",
-                      QCcode = "NA",
-                      temp1,
-                      check.names = FALSE,
-                      row.names = NULL)
-    return(temp1)
-    remove(temp1, temp2, temp3, temp4, temp5)
-  
-  # if the marker is an indel    
-  }else if (nchar(temp2)<nchar(temp3) | nchar(temp2)>nchar(temp3)){
-        
-    if(verbose==TRUE){print("INDEL")}
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    
-    if(nchar(temp2)>nchar(temp3)){
-
-      # string
-      string <- paste(temp2, temp2, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- substr(temp2, start = nchar(temp3)+1, stop = nchar(temp3)+1)
-      
-      # string
-      string <- paste(temp2, temp3, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- 0
-      
-      # string
-      string <- paste(temp3, temp2, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- 0
-      
-      # string
-      string <- paste(temp3, temp3, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- "-"
-      
-      # replace
-      temp1[temp1=="./."] <- "N"
-      
-      # temp1
-      temp1<-data.frame(`rs#` = temp4,
-                        alleles = paste(substr(temp2, start = nchar(temp3)+1, stop = nchar(temp3)+1),"/-",sep = ""),
-                        chrom = temp5[,"#CHROM"],
-                        pos = temp5[,"POS"],
-                        strand = "+",
-                        `assembly#` = "NA",
-                        center = "NA",
-                        protLSID = "NA",
-                        assayLSID = "NA",
-                        panelLSID = "NA",
-                        QCcode = "NA",
-                        temp1,
-                        check.names = FALSE,
-                        row.names = NULL)
-    
-    return(temp1)
-    remove(temp1, temp2, temp3, temp4, temp5, string)         
-        
-    }else if(nchar(temp2)<nchar(temp3)){
-      
-      # string
-      string <- paste(temp3, temp3, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- substr(temp3, start = nchar(temp2)+1, stop = nchar(temp2)+1)
-      
-      # string
-      string <- paste(temp2, temp3, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- 0
-      
-      # string
-      string <- paste(temp3, temp2, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- 0
-      
-      # string
-      string <- paste(temp2, temp2, sep = "/")
-      
-      # replace
-      temp1[temp1==string] <- "-"
-      
-      # replace
-      temp1[temp1=="./."] <- "N"
-      
-      # return          
-      temp1<-data.frame(`rs#` = temp4,
-                        alleles = paste("-/",substr(temp3, start = nchar(temp2)+1, stop = nchar(temp2)+1),sep = ""),
-                        chrom = temp5[,"#CHROM"],
-                        pos = temp5[,"POS"],
-                        strand = "+",
-                        `assembly#` = "NA",
-                        center = "NA",
-                        protLSID = "NA",
-                        assayLSID = "NA",
-                        panelLSID = "NA",
-                        QCcode = "NA",
-                        temp1,
-                        check.names = FALSE,
-                        row.names = NULL)
-      
-      return(temp1)
-      remove(temp1, temp2, temp3, temp4, temp5)   
+  # if the marker is a snp
+  if (temp2 %in% c("A", "T", "G", "C") & temp3 %in% c("A", "T", "G", "C")) {
+    if (verbose == TRUE) {
+      print("SNP")
     }
-  
-  # If the reference is a null allele    
-  }else if(temp2=="."){
-    
-    if(verbose==TRUE){print("DOMINANT")}
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    temp1[temp1=="A/A"] = "A"
-    temp1[temp1=="T/T"] = "T"
-    temp1[temp1=="C/C"] = "C"
-    temp1[temp1=="G/G"] = "G"
-    temp1[temp1=="A/G"] = "R"
-    temp1[temp1=="G/A"] = "R"
-    temp1[temp1=="C/T"] = "Y"
-    temp1[temp1=="T/C"] = "Y"
-    temp1[temp1=="G/C"] = "S"
-    temp1[temp1=="C/G"] = "S"
-    temp1[temp1=="A/T"] = "W"
-    temp1[temp1=="T/A"] = "W"
-    temp1[temp1=="G/T"] = "K"
-    temp1[temp1=="T/G"] = "K"
-    temp1[temp1=="A/C"] = "M"
-    temp1[temp1=="C/A"] = "M"
-    temp1[temp1=="./."] = "N"
-    temp1<-data.frame(`rs#` = temp4,
-                      alleles = temp3,
-                      chrom = temp5[,"#CHROM"],
-                      pos = temp5[,"POS"],
-                      strand = "+",
-                      `assembly#` = "NA",
-                      center = "NA",
-                      protLSID = "NA",
-                      assayLSID = "NA",
-                      panelLSID = "NA",
-                      QCcode = "NA",
-                      temp1,
-                      check.names = FALSE,
-                      row.names = NULL)
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(0, temp2, x)
+    })
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(1, temp3, x)
+    })
+    temp1[temp1 == "A/A"] <- "A"
+    temp1[temp1 == "T/T"] <- "T"
+    temp1[temp1 == "C/C"] <- "C"
+    temp1[temp1 == "G/G"] <- "G"
+    temp1[temp1 == "A/G"] <- "R"
+    temp1[temp1 == "G/A"] <- "R"
+    temp1[temp1 == "C/T"] <- "Y"
+    temp1[temp1 == "T/C"] <- "Y"
+    temp1[temp1 == "G/C"] <- "S"
+    temp1[temp1 == "C/G"] <- "S"
+    temp1[temp1 == "A/T"] <- "W"
+    temp1[temp1 == "T/A"] <- "W"
+    temp1[temp1 == "G/T"] <- "K"
+    temp1[temp1 == "T/G"] <- "K"
+    temp1[temp1 == "A/C"] <- "M"
+    temp1[temp1 == "C/A"] <- "M"
+    temp1[temp1 == "./."] <- "N"
+    temp1 <- data.frame(
+      `rs#` = temp4,
+      alleles = paste(temp2, "/", temp3, sep = ""),
+      chrom = temp5[, "#CHROM"],
+      pos = temp5[, "POS"],
+      strand = "+",
+      `assembly#` = "NA",
+      center = "NA",
+      protLSID = "NA",
+      assayLSID = "NA",
+      panelLSID = "NA",
+      QCcode = "NA",
+      temp1,
+      check.names = FALSE,
+      row.names = NULL
+    )
     return(temp1)
     remove(temp1, temp2, temp3, temp4, temp5)
-  
-  # if the alt allele is a null allele   
-  }else if(temp3=="."){
 
-    if(verbose==TRUE){print("DOMINANT")}
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(0, temp2, x)})
-    temp1[,1:ncol(temp1)] <- lapply(temp1[,1:ncol(temp1)], function(x){gsub(1, temp3, x)})
-    temp1[temp1=="A/A"] = "A"
-    temp1[temp1=="T/T"] = "T"
-    temp1[temp1=="C/C"] = "C"
-    temp1[temp1=="G/G"] = "G"
-    temp1[temp1=="A/G"] = "R"
-    temp1[temp1=="G/A"] = "R"
-    temp1[temp1=="C/T"] = "Y"
-    temp1[temp1=="T/C"] = "Y"
-    temp1[temp1=="G/C"] = "S"
-    temp1[temp1=="C/G"] = "S"
-    temp1[temp1=="A/T"] = "W"
-    temp1[temp1=="T/A"] = "W"
-    temp1[temp1=="G/T"] = "K"
-    temp1[temp1=="T/G"] = "K"
-    temp1[temp1=="A/C"] = "M"
-    temp1[temp1=="C/A"] = "M"
-    temp1[temp1=="./."] = "N"
-    temp1<-data.frame(`rs#` = temp4,
-                      alleles = temp2,
-                      chrom = temp5[,"#CHROM"],
-                      pos = temp5[,"POS"],
-                      strand = "+",
-                      `assembly#` = "NA",
-                      center = "NA",
-                      protLSID = "NA",
-                      assayLSID = "NA",
-                      panelLSID = "NA",
-                      QCcode = "NA",
-                      temp1,
-                      check.names = FALSE,
-                      row.names = NULL)
+    # if the marker is an indel
+  } else if (nchar(temp2) < nchar(temp3) | nchar(temp2) > nchar(temp3)) {
+    if (verbose == TRUE) {
+      print("INDEL")
+    }
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(0, temp2, x)
+    })
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(1, temp3, x)
+    })
+
+    if (nchar(temp2) > nchar(temp3)) {
+      # string
+      string <- paste(temp2, temp2, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- substr(temp2, start = nchar(temp3) + 1, stop = nchar(temp3) + 1)
+
+      # string
+      string <- paste(temp2, temp3, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- 0
+
+      # string
+      string <- paste(temp3, temp2, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- 0
+
+      # string
+      string <- paste(temp3, temp3, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- "-"
+
+      # replace
+      temp1[temp1 == "./."] <- "N"
+
+      # temp1
+      temp1 <- data.frame(
+        `rs#` = temp4,
+        alleles = paste(substr(temp2, start = nchar(temp3) + 1, stop = nchar(temp3) + 1), "/-", sep = ""),
+        chrom = temp5[, "#CHROM"],
+        pos = temp5[, "POS"],
+        strand = "+",
+        `assembly#` = "NA",
+        center = "NA",
+        protLSID = "NA",
+        assayLSID = "NA",
+        panelLSID = "NA",
+        QCcode = "NA",
+        temp1,
+        check.names = FALSE,
+        row.names = NULL
+      )
+
+      return(temp1)
+      remove(temp1, temp2, temp3, temp4, temp5, string)
+    } else if (nchar(temp2) < nchar(temp3)) {
+      # string
+      string <- paste(temp3, temp3, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- substr(temp3, start = nchar(temp2) + 1, stop = nchar(temp2) + 1)
+
+      # string
+      string <- paste(temp2, temp3, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- 0
+
+      # string
+      string <- paste(temp3, temp2, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- 0
+
+      # string
+      string <- paste(temp2, temp2, sep = "/")
+
+      # replace
+      temp1[temp1 == string] <- "-"
+
+      # replace
+      temp1[temp1 == "./."] <- "N"
+
+      # return
+      temp1 <- data.frame(
+        `rs#` = temp4,
+        alleles = paste("-/", substr(temp3, start = nchar(temp2) + 1, stop = nchar(temp2) + 1), sep = ""),
+        chrom = temp5[, "#CHROM"],
+        pos = temp5[, "POS"],
+        strand = "+",
+        `assembly#` = "NA",
+        center = "NA",
+        protLSID = "NA",
+        assayLSID = "NA",
+        panelLSID = "NA",
+        QCcode = "NA",
+        temp1,
+        check.names = FALSE,
+        row.names = NULL
+      )
+
+      return(temp1)
+      remove(temp1, temp2, temp3, temp4, temp5)
+    }
+
+    # If the reference is a null allele
+  } else if (temp2 == ".") {
+    if (verbose == TRUE) {
+      print("DOMINANT")
+    }
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(0, temp2, x)
+    })
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(1, temp3, x)
+    })
+    temp1[temp1 == "A/A"] <- "A"
+    temp1[temp1 == "T/T"] <- "T"
+    temp1[temp1 == "C/C"] <- "C"
+    temp1[temp1 == "G/G"] <- "G"
+    temp1[temp1 == "A/G"] <- "R"
+    temp1[temp1 == "G/A"] <- "R"
+    temp1[temp1 == "C/T"] <- "Y"
+    temp1[temp1 == "T/C"] <- "Y"
+    temp1[temp1 == "G/C"] <- "S"
+    temp1[temp1 == "C/G"] <- "S"
+    temp1[temp1 == "A/T"] <- "W"
+    temp1[temp1 == "T/A"] <- "W"
+    temp1[temp1 == "G/T"] <- "K"
+    temp1[temp1 == "T/G"] <- "K"
+    temp1[temp1 == "A/C"] <- "M"
+    temp1[temp1 == "C/A"] <- "M"
+    temp1[temp1 == "./."] <- "N"
+    temp1 <- data.frame(
+      `rs#` = temp4,
+      alleles = temp3,
+      chrom = temp5[, "#CHROM"],
+      pos = temp5[, "POS"],
+      strand = "+",
+      `assembly#` = "NA",
+      center = "NA",
+      protLSID = "NA",
+      assayLSID = "NA",
+      panelLSID = "NA",
+      QCcode = "NA",
+      temp1,
+      check.names = FALSE,
+      row.names = NULL
+    )
     return(temp1)
     remove(temp1, temp2, temp3, temp4, temp5)
-    
+
+    # if the alt allele is a null allele
+  } else if (temp3 == ".") {
+    if (verbose == TRUE) {
+      print("DOMINANT")
+    }
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(0, temp2, x)
+    })
+    temp1[, 1:ncol(temp1)] <- lapply(temp1[, 1:ncol(temp1)], function(x) {
+      gsub(1, temp3, x)
+    })
+    temp1[temp1 == "A/A"] <- "A"
+    temp1[temp1 == "T/T"] <- "T"
+    temp1[temp1 == "C/C"] <- "C"
+    temp1[temp1 == "G/G"] <- "G"
+    temp1[temp1 == "A/G"] <- "R"
+    temp1[temp1 == "G/A"] <- "R"
+    temp1[temp1 == "C/T"] <- "Y"
+    temp1[temp1 == "T/C"] <- "Y"
+    temp1[temp1 == "G/C"] <- "S"
+    temp1[temp1 == "C/G"] <- "S"
+    temp1[temp1 == "A/T"] <- "W"
+    temp1[temp1 == "T/A"] <- "W"
+    temp1[temp1 == "G/T"] <- "K"
+    temp1[temp1 == "T/G"] <- "K"
+    temp1[temp1 == "A/C"] <- "M"
+    temp1[temp1 == "C/A"] <- "M"
+    temp1[temp1 == "./."] <- "N"
+    temp1 <- data.frame(
+      `rs#` = temp4,
+      alleles = temp2,
+      chrom = temp5[, "#CHROM"],
+      pos = temp5[, "POS"],
+      strand = "+",
+      `assembly#` = "NA",
+      center = "NA",
+      protLSID = "NA",
+      assayLSID = "NA",
+      panelLSID = "NA",
+      QCcode = "NA",
+      temp1,
+      check.names = FALSE,
+      row.names = NULL
+    )
+    return(temp1)
+    remove(temp1, temp2, temp3, temp4, temp5)
   }
 }
 
 # Set the number of cores to use
-num_cores <- detectCores()-1
+num_cores <- detectCores() - 1
 
 # Create a cluster
 cl <- makeCluster(num_cores)
@@ -424,30 +435,28 @@ cl <- makeCluster(num_cores)
 registerDoParallel(cl)
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### HapMap conversion start:", Sys.time(), "###") 
-  
+  print_text <- paste("### HapMap conversion start:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-
 }
 
 
 # For each
-hapmap <- foreach(i = 1:nrow(vcf), .combine = 'rbind') %dopar% {
+hapmap <- foreach(i = 1:nrow(vcf), .combine = "rbind") %dopar% {
   # Pull data
-  temp1 <- vcf[i,]
-  
+  temp1 <- vcf[i, ]
+
   # Do function
   temp1 <- vcf_to_hapmap(temp1)
-  
-  # Return 
+
+  # Return
   return(temp1)
-  
+
   # Remove
   remove(temp1)
 }
@@ -459,21 +468,20 @@ stopCluster(cl)
 remove(cl)
 
 # Write out hapmap
-fwrite(as.data.table(hapmap, keep.rownames = FALSE), 
-       file = paste(output_directory, "/", output_name, "_hapmap.hmp.txt.gz", sep = ""),
-       sep = "\t")
+fwrite(as.data.table(hapmap, keep.rownames = FALSE),
+  file = paste(output_directory, "/", output_name, "_hapmap.hmp.txt.gz", sep = ""),
+  sep = "\t"
+)
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### HapMap conversion stop:", Sys.time(), "###") 
-  
+  print_text <- paste("### HapMap conversion stop:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 ```
 
@@ -483,20 +491,18 @@ Here I am taking the haplotyping file and writing out reports.
 
 ```{r making_reports}
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Generating marker report start:", Sys.time(), "###") 
-  
+  print_text <- paste("### Generating marker report start:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 
 # Set the number of cores to use
-num_cores <- detectCores()-1
+num_cores <- detectCores() - 1
 
 # Create a cluster
 cl <- makeCluster(num_cores)
@@ -505,38 +511,36 @@ cl <- makeCluster(num_cores)
 registerDoParallel(cl)
 
 # If duplicated
-if(any(duplicated(key[,"Locus"]))==TRUE){
+if (any(duplicated(key[, "Locus"])) == TRUE) {
   # Throw error message and stop
   stop("There appears to be duplicated loci in the key file. Please check your inputs!")
 }
 
 # For loop in parallel
-reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
-
+reports <- foreach(i = unique(key[, "Locus"])) %dopar% {
   # Alternate for sequential option
-  #for (i in unique(key[,"Locus"])){
-  
+  # for (i in unique(key[,"Locus"])){
+
   # Pull information
-  temp1 <- key[key[,"Locus"]==i,]
-  
+  temp1 <- key[key[, "Locus"] == i, ]
+
   # Get markers
-  temp2 <-  unlist(strsplit(temp1[,"Markers"], ":"))
-  
+  temp2 <- unlist(strsplit(temp1[, "Markers"], ":"))
+
   # Pull markers
-  temp3 <- as.data.frame(hapmap[hapmap[,"rs#"] %in% temp2, ])
-  rownames(temp3) <- temp3[,1]
-  
+  temp3 <- as.data.frame(hapmap[hapmap[, "rs#"] %in% temp2, ])
+  rownames(temp3) <- temp3[, 1]
+
   # Pull marker call in second collumn
-  temp3.1 <- c(temp3[,2])
-  names(temp3.1) <- temp3[,1]
-  
+  temp3.1 <- c(temp3[, 2])
+  names(temp3.1) <- temp3[, 1]
+
   # Finish pulling makrers
-  temp3 <- temp3[,12:ncol(temp3)]
-  temp3 <- temp3[temp2,]
-  
+  temp3 <- temp3[, 12:ncol(temp3)]
+  temp3 <- temp3[temp2, ]
+
   # Check if markers are found in both files
-  if(all(temp2 %in% rownames(temp3))==FALSE){
-    
+  if (all(temp2 %in% rownames(temp3)) == FALSE) {
     # Send Message for sequential option
     # message("#################################")
     # message("Markers identified for ",
@@ -546,137 +550,167 @@ reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
     #         i,
     #         " and moving to the next locus.",
     #         " If this is in error, check your VCF input marker names and your haplotyping key.")
-    
-    warning_message<-paste("Warning: Markers identified for ",
-                           i,
-                           " are not found HapMap.\n",
-                           " Not producing call for locus ",
-                           i,
-                           " and moving to the next locus.\n",
-                           " If this is in error, check your VCF input marker names and your haplotyping key!\n",
-                           sep = "")
-    
+
+    warning_message <- paste("Warning: Markers identified for ",
+      i,
+      " are not found HapMap.\n",
+      " Not producing call for locus ",
+      i,
+      " and moving to the next locus.\n",
+      " If this is in error, check your VCF input marker names and your haplotyping key!\n",
+      sep = ""
+    )
+
     # Alternate for sequential option
     # next
-    
-    #Return
+
+    # Return
     return(warning_message)
-    
   }
-  
+
   # Pull haplotypes
-  if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
-  if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
-  if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
-  if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
-  
-  #set auto_suggestions to null
+  if (is.na(temp1[, "Pos"])) {
+    temp4 <- NA
+  } else {
+    temp4 <- unlist(strsplit(temp1[, "Pos"], "_"))
+  }
+  if (is.na(temp1[, "Het"])) {
+    temp5 <- NA
+  } else {
+    temp5 <- unlist(strsplit(temp1[, "Het"], "_"))
+  }
+  if (is.na(temp1[, "Neg"])) {
+    temp6 <- NA
+  } else {
+    temp6 <- unlist(strsplit(temp1[, "Neg"], "_"))
+  }
+  if (is.na(temp1[, "Missing"])) {
+    temp7 <- NA
+  } else {
+    temp7 <- unlist(strsplit(temp1[, "Missing"], "_"))
+  }
+
+  # set auto_suggestions to null
   auto_suggestions <- c()
-  
+
   # Check if auto call is requested
-  if(temp1[,"Auto"]==TRUE){
-    
+  if (temp1[, "Auto"] == TRUE) {
     # Check if positive calls are given
-    if(is.na(temp4[1])){
-      stop("It appears there are no positive haplotypes given for ", 
-           i,
-           ". There must be at least one positive haplotype defined for the 'Auto' feature.",
-           " Please check your inputs and resubmit!")
+    if (is.na(temp4[1])) {
+      stop(
+        "It appears there are no positive haplotypes given for ",
+        i,
+        ". There must be at least one positive haplotype defined for the 'Auto' feature.",
+        " Please check your inputs and resubmit!"
+      )
     }
-    
+
     # Pull number of missing
-    n.missing <- temp1[,"N_Missing"]
-    
+    n.missing <- temp1[, "N_Missing"]
+
     # Check if number of missing is defined
-    if(is.na(n.missing) | !is.numeric(n.missing)){
-      stop("Number of tolerated missing calls must be defined and must be a number for ",
-           i,
-           "! Check the Column 'N_Missing' and resubmit!")
+    if (is.na(n.missing) | !is.numeric(n.missing)) {
+      stop(
+        "Number of tolerated missing calls must be defined and must be a number for ",
+        i,
+        "! Check the Column 'N_Missing' and resubmit!"
+      )
     }
-    
-    # Check if the locus only has one marker 
-    if(length(temp2)==1){
-      stop("Only one defining marker detected for ",
-           i,
-           ". The 'Auto' function is only available for loci with multiple markers! ",
-           "Please define your haplotypes, set auto to 'FALSE', and resubmit.")
+
+    # Check if the locus only has one marker
+    if (length(temp2) == 1) {
+      stop(
+        "Only one defining marker detected for ",
+        i,
+        ". The 'Auto' function is only available for loci with multiple markers! ",
+        "Please define your haplotypes, set auto to 'FALSE', and resubmit."
+      )
     }
-     
+
     # Get ref alt of each marker in iupac
     ref_alt <- c()
-    
+
     # Permutate through markers
-    for(j in rownames(temp3)){
+    for (j in rownames(temp3)) {
       temp1.1 <- unlist(strsplit(temp3.1[j], "/"))
-      temp1.2 <- temp1.1[grep("G",temp1.1)]
-      temp1.3 <- temp1.1[grep("T",temp1.1)]
-      temp1.4 <- temp1.1[grep("C",temp1.1)]
-      temp1.5 <- temp1.1[grep("A",temp1.1)]
-      temp1.6 <- temp1.1[grep("-",temp1.1)]
-      temp1.1 <- data.frame(Marker=j,
-                            G=ifelse(is.null(temp1.2), NA, temp1.2),
-                            `T`=ifelse(is.null(temp1.3), NA, temp1.3),
-                            C=ifelse(is.null(temp1.4), NA, temp1.4),
-                            A=ifelse(is.null(temp1.5), NA, temp1.5),
-                            gap=ifelse(is.null(temp1.6), NA, temp1.6))
+      temp1.2 <- temp1.1[grep("G", temp1.1)]
+      temp1.3 <- temp1.1[grep("T", temp1.1)]
+      temp1.4 <- temp1.1[grep("C", temp1.1)]
+      temp1.5 <- temp1.1[grep("A", temp1.1)]
+      temp1.6 <- temp1.1[grep("-", temp1.1)]
+      temp1.1 <- data.frame(
+        Marker = j,
+        G = ifelse(is.null(temp1.2), NA, temp1.2),
+        `T` = ifelse(is.null(temp1.3), NA, temp1.3),
+        C = ifelse(is.null(temp1.4), NA, temp1.4),
+        A = ifelse(is.null(temp1.5), NA, temp1.5),
+        gap = ifelse(is.null(temp1.6), NA, temp1.6)
+      )
       temp1.1 <- temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)]
       # Check if the maker is biallelic
-      if(ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])!=3 & ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])!=2){
-        stop("Marker ", 
-             j, 
-             " associated with locus ", 
-             i, 
-             " appears to be multiallelic rather than biallelic.",
-             " Calls can only be made in Auto mode with biallelic markers!",
-             " Please check your inputs and resubmit!")
-      }else if(ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)])==2){
+      if (ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)]) != 3 & ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)]) != 2) {
+        stop(
+          "Marker ",
+          j,
+          " associated with locus ",
+          i,
+          " appears to be multiallelic rather than biallelic.",
+          " Calls can only be made in Auto mode with biallelic markers!",
+          " Please check your inputs and resubmit!"
+        )
+      } else if (ncol(temp1.1[, colSums(is.na(temp1.1)) != nrow(temp1.1)]) == 2) {
         message("#################################")
-        message("Marker ", 
-                j, 
-                " associated with locus ", 
-                i, 
-                " appears to be monomorphic rather than biallelic.",
-                " Moving forward with assumption that the marker is dominant...")
+        message(
+          "Marker ",
+          j,
+          " associated with locus ",
+          i,
+          " appears to be monomorphic rather than biallelic.",
+          " Moving forward with assumption that the marker is dominant..."
+        )
         temp1.1 <- cbind(temp1.1, NA)
         colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
         ref_alt <- rbind(ref_alt, temp1.1)
         remove(temp1.1, temp1.2, temp1.3, temp1.4, temp1.5, temp1.6)
-      }else{
+      } else {
         colnames(temp1.1) <- c("Marker", "Allele_1", "Allele_2")
         ref_alt <- rbind(ref_alt, temp1.1)
-        remove(temp1.1, temp1.2, temp1.3, temp1.4, temp1.5, temp1.6) 
+        remove(temp1.1, temp1.2, temp1.3, temp1.4, temp1.5, temp1.6)
       }
     }
-  
+
     # assign het call
-    ref_alt$Allele_Het <- paste(ref_alt[,"Allele_1"],
-                                "/",
-                                ref_alt[,"Allele_2"],
-                                sep = "")
-    ref_alt[ref_alt=="A/G"] = "R"
-    ref_alt[ref_alt=="G/A"] = "R"
-    ref_alt[ref_alt=="C/T"] = "Y"
-    ref_alt[ref_alt=="T/C"] = "Y"
-    ref_alt[ref_alt=="G/C"] = "S"
-    ref_alt[ref_alt=="C/G"] = "S"
-    ref_alt[ref_alt=="A/T"] = "W"
-    ref_alt[ref_alt=="T/A"] = "W"
-    ref_alt[ref_alt=="G/T"] = "K"
-    ref_alt[ref_alt=="T/G"] = "K"
-    ref_alt[ref_alt=="A/C"] = "M"
-    ref_alt[ref_alt=="C/A"] = "M"
-    
+    ref_alt$Allele_Het <- paste(ref_alt[, "Allele_1"],
+      "/",
+      ref_alt[, "Allele_2"],
+      sep = ""
+    )
+    ref_alt[ref_alt == "A/G"] <- "R"
+    ref_alt[ref_alt == "G/A"] <- "R"
+    ref_alt[ref_alt == "C/T"] <- "Y"
+    ref_alt[ref_alt == "T/C"] <- "Y"
+    ref_alt[ref_alt == "G/C"] <- "S"
+    ref_alt[ref_alt == "C/G"] <- "S"
+    ref_alt[ref_alt == "A/T"] <- "W"
+    ref_alt[ref_alt == "T/A"] <- "W"
+    ref_alt[ref_alt == "G/T"] <- "K"
+    ref_alt[ref_alt == "T/G"] <- "K"
+    ref_alt[ref_alt == "A/C"] <- "M"
+    ref_alt[ref_alt == "C/A"] <- "M"
+
     # assign dominant calls
-    ref_alt[ref_alt=="A/NA"] = NA
-    ref_alt[ref_alt=="G/NA"] = NA
-    ref_alt[ref_alt=="C/NA"] = NA
-    ref_alt[ref_alt=="T/NA"] = NA
-    
+    ref_alt[ref_alt == "A/NA"] <- NA
+    ref_alt[ref_alt == "G/NA"] <- NA
+    ref_alt[ref_alt == "C/NA"] <- NA
+    ref_alt[ref_alt == "T/NA"] <- NA
+
     # Define positive allele
     positive <- data.frame(Haplotype = temp4)
-    positive <- cbind(positive, matrix(data = unlist(strsplit(temp4, split = ":")),
-                                       nrow = nrow(positive),
-                                       byrow = TRUE))
+    positive <- cbind(positive, matrix(
+      data = unlist(strsplit(temp4, split = ":")),
+      nrow = nrow(positive),
+      byrow = TRUE
+    ))
     positive[positive == "N"] <- NA
     positive[positive == "R"] <- NA
     positive[positive == "Y"] <- NA
@@ -685,366 +719,390 @@ reports<-foreach(i=unique(key[,"Locus"])) %dopar% {
     positive[positive == "K"] <- NA
     positive[positive == "M"] <- NA
     positive <- na.omit(positive)
-    colnames(positive) <- c("Haplotype", ref_alt[,"Marker"])
-    
-    if(nrow(positive)==0){
-      stop("It appears that no positive cases for ",
-           i,
-           " are complete case!",
-           " Positive cases must contain at least one complete, homozygous sequence (e.g., A:G:T).",
-           " Check your inputs and resubmit!")
+    colnames(positive) <- c("Haplotype", ref_alt[, "Marker"])
+
+    if (nrow(positive) == 0) {
+      stop(
+        "It appears that no positive cases for ",
+        i,
+        " are complete case!",
+        " Positive cases must contain at least one complete, homozygous sequence (e.g., A:G:T).",
+        " Check your inputs and resubmit!"
+      )
     }
-    
-    # Define negative allele 
+
+    # Define negative allele
     negative <- positive
-    
-    for(j in colnames(positive)[2:ncol(positive)]){
-      
-      # pull allele 
-      temp1.1 <- negative[,j]
-      
+
+    for (j in colnames(positive)[2:ncol(positive)]) {
+      # pull allele
+      temp1.1 <- negative[, j]
+
       # pull corresponding marker
-      temp1.2 <- ref_alt[ref_alt[,"Marker"]==j,]
-      
-      # identify alternate 
-      temp1.3 <- ifelse(temp1.2[,"Allele_1"]==temp1.1, temp1.2[,"Allele_2"], temp1.2[,"Allele_1"])
-      
+      temp1.2 <- ref_alt[ref_alt[, "Marker"] == j, ]
+
+      # identify alternate
+      temp1.3 <- ifelse(temp1.2[, "Allele_1"] == temp1.1, temp1.2[, "Allele_2"], temp1.2[, "Allele_1"])
+
       # replace NA
       temp1.3 <- ifelse(is.na(temp1.3), "N", temp1.3)
-      
+
       # rename
-      negative[,j] <- temp1.3
-      
+      negative[, j] <- temp1.3
+
       # remove
       remove(temp1.1, temp1.2, temp1.3)
-      
     }
-  
+
     # Define heterozygus cases
-    heterozygous <- as.character(ref_alt[,"Allele_Het"])
+    heterozygous <- as.character(ref_alt[, "Allele_Het"])
     heterozygous <- paste(heterozygous, collapse = ":")
-    heterozygous <- data.frame(Haplotype=heterozygous,
-                               t(ref_alt[,"Allele_Het"]))
-    colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[,"Marker"]
-    
+    heterozygous <- data.frame(
+      Haplotype = heterozygous,
+      t(ref_alt[, "Allele_Het"])
+    )
+    colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[, "Marker"]
+
     # if there are NAs which indicate that there is a dominant marker
-    if(length(unique(is.na(heterozygous)))!=1){
-      heterozygous<-c()
-      for(j in 1:nrow(ref_alt)){
-        if(is.na(ref_alt[j,"Allele_Het"])){
-          heterozygous<-c(heterozygous,ref_alt[j,"Allele_1"])
-        }else{
-          heterozygous<-c(heterozygous,ref_alt[j,"Allele_Het"])
+    if (length(unique(is.na(heterozygous))) != 1) {
+      heterozygous <- c()
+      for (j in 1:nrow(ref_alt)) {
+        if (is.na(ref_alt[j, "Allele_Het"])) {
+          heterozygous <- c(heterozygous, ref_alt[j, "Allele_1"])
+        } else {
+          heterozygous <- c(heterozygous, ref_alt[j, "Allele_Het"])
         }
       }
-      heterozygous<-data.frame(Haplotype=paste(heterozygous, collapse = ":"),
-                               t(heterozygous))
-      colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[,"Marker"]
+      heterozygous <- data.frame(
+        Haplotype = paste(heterozygous, collapse = ":"),
+        t(heterozygous)
+      )
+      colnames(heterozygous)[2:ncol(heterozygous)] <- ref_alt[, "Marker"]
     }
-    
+
     # Define missing case
-    missing <- data.frame(Haplotype = paste(rep("N", length(2:ncol(heterozygous))), collapse = ":"),
-                          t(rep("N", length(2:ncol(heterozygous)))))
-    colnames(missing)[2:ncol(missing)] <- ref_alt[,"Marker"]
-    
+    missing <- data.frame(
+      Haplotype = paste(rep("N", length(2:ncol(heterozygous))), collapse = ":"),
+      t(rep("N", length(2:ncol(heterozygous))))
+    )
+    colnames(missing)[2:ncol(missing)] <- ref_alt[, "Marker"]
+
     # check if negative cases have N
-    if("N" %in% negative[,2:ncol(negative)]){
-      temp1.1 <- negative[,2:ncol(negative)]
-      temp1.1 <- colnames(temp1.1[,temp1.1=="N"])
+    if ("N" %in% negative[, 2:ncol(negative)]) {
+      temp1.1 <- negative[, 2:ncol(negative)]
+      temp1.1 <- colnames(temp1.1[, temp1.1 == "N"])
       dominant_markers <- temp1.1
       remove(temp1.1)
     }
-    
+
     # Combine the cases
-    cases <- data.frame(Type=c("Positive", "Heterozygous", "Negative", "Missing"),
-                        rbind(positive, heterozygous, negative, missing))
-    
+    cases <- data.frame(
+      Type = c("Positive", "Heterozygous", "Negative", "Missing"),
+      rbind(positive, heterozygous, negative, missing)
+    )
+
     # Get every other possible combination
-    haplotypes <- expand.grid(cases[,3:ncol(cases)])
-    haplotypes[,1:ncol(haplotypes)] <- lapply(haplotypes[,1:ncol(haplotypes)], as.character) 
+    haplotypes <- expand.grid(cases[, 3:ncol(cases)])
+    haplotypes[, 1:ncol(haplotypes)] <- lapply(haplotypes[, 1:ncol(haplotypes)], as.character)
     haplotypes <- unique(haplotypes)
-    
+
     # make a list of deinfed haplotypes
-    for(j in 1:nrow(haplotypes)){
-      temp1.1 <- haplotypes[j,]
-      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
-      if(j==1){
-        temp1.2<-temp1.1
-      }else{
-        temp1.2<-c(temp1.2, temp1.1)
+    for (j in 1:nrow(haplotypes)) {
+      temp1.1 <- haplotypes[j, ]
+      temp1.1 <- paste(temp1.1[, 1:length(temp1.1)], collapse = ":")
+      if (j == 1) {
+        temp1.2 <- temp1.1
+      } else {
+        temp1.2 <- c(temp1.2, temp1.1)
       }
       remove(temp1.1)
     }
-    
-    haplotypes$Haplotype<-temp1.2
+
+    haplotypes$Haplotype <- temp1.2
     remove(temp1.2)
-    
+
     # Give an innitial call to things which are defined
-    haplotypes[,"Call"] <- ifelse(haplotypes[,"Haplotype"] %in% temp4, "POS",
-                              ifelse(haplotypes[,"Haplotype"] %in% temp5, "HET",
-                                     ifelse(haplotypes[,"Haplotype"] %in% temp6, "NEG",
-                                            ifelse(haplotypes[,"Haplotype"] %in% temp7, "MISSING", NA))))
-    
+    haplotypes[, "Call"] <- ifelse(haplotypes[, "Haplotype"] %in% temp4, "POS",
+      ifelse(haplotypes[, "Haplotype"] %in% temp5, "HET",
+        ifelse(haplotypes[, "Haplotype"] %in% temp6, "NEG",
+          ifelse(haplotypes[, "Haplotype"] %in% temp7, "MISSING", NA)
+        )
+      )
+    )
+
     #### If the sequence contains X number of N's call it missing
-    
+
     # Empty vector
     N_Missing <- c()
-    
+
     # Count number of N in a string
     for (j in 1:nrow(haplotypes)) {
       N_Missing <- c(N_Missing, sum(unlist(gregexpr("N", haplotypes[j, "Haplotype"], fixed = TRUE)) > 0))
     }
-    
-    # Report that 
-    haplotypes[,"N_Missing"] <- N_Missing
-    
+
+    # Report that
+    haplotypes[, "N_Missing"] <- N_Missing
+
     # Assign missing if N is greater than n.missing
-    haplotypes[,"Call"] <- ifelse(haplotypes[,"N_Missing"]>n.missing, "MISSING", haplotypes[,"Call"])
-    
+    haplotypes[, "Call"] <- ifelse(haplotypes[, "N_Missing"] > n.missing, "MISSING", haplotypes[, "Call"])
+
     #### If the sequence contains same sequence as positive cases but with missing data then call pos
-    
+
     # make a list for homozygous cases
-    check<-expand.grid(cases[c(1,4),c(3:ncol(cases))])
-     
+    check <- expand.grid(cases[c(1, 4), c(3:ncol(cases))])
+
     # Make sure they are in correct format
-    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
-    
+    check[, 1:ncol(check)] <- lapply(check[, 1:ncol(check)], as.character)
+
     # Make haplotypes
-    for(j in 1:nrow(check)){
-      temp1.1 <- check[j,]
-      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
-      if(j==1){
-        temp1.2<-temp1.1
-      }else{
-        temp1.2<-c(temp1.2, temp1.1)
+    for (j in 1:nrow(check)) {
+      temp1.1 <- check[j, ]
+      temp1.1 <- paste(temp1.1[, 1:length(temp1.1)], collapse = ":")
+      if (j == 1) {
+        temp1.2 <- temp1.1
+      } else {
+        temp1.2 <- c(temp1.2, temp1.1)
       }
       remove(temp1.1)
     }
-    
+
     # Bind in haplotypes
-    check[,"Haplotype"] <- temp1.2
-  
+    check[, "Haplotype"] <- temp1.2
+
     # Remove
     remove(temp1.2)
-    
+
     # Remove any cases that are already defined
-    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
-    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    temp1.1 <- haplotypes[!is.na(haplotypes[, "Call"]), "Haplotype"]
+    check <- check[!check[, "Haplotype"] %in% temp1.1, ]
     remove(temp1.1)
-    
+
     # Redefine
-    haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "POS"
-    
+    haplotypes[haplotypes[, "Haplotype"] %in% check[, "Haplotype"], "Call"] <- "POS"
+
     ### If the sequence is the same as the positive case but with a het call it het
-    
+
     # make a list for heterozygous cases
-    check<-expand.grid(cases[c(1,2,4),c(3:ncol(cases))])
-    
+    check <- expand.grid(cases[c(1, 2, 4), c(3:ncol(cases))])
+
     # Make sure they are in correct format
-    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
-    
+    check[, 1:ncol(check)] <- lapply(check[, 1:ncol(check)], as.character)
+
     # Make haplotypes
-    for(j in 1:nrow(check)){
-      temp1.1 <- check[j,]
-      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
-      if(j==1){
-        temp1.2<-temp1.1
-      }else{
-        temp1.2<-c(temp1.2, temp1.1)
+    for (j in 1:nrow(check)) {
+      temp1.1 <- check[j, ]
+      temp1.1 <- paste(temp1.1[, 1:length(temp1.1)], collapse = ":")
+      if (j == 1) {
+        temp1.2 <- temp1.1
+      } else {
+        temp1.2 <- c(temp1.2, temp1.1)
       }
       remove(temp1.1)
     }
-    
+
     # Bind in haplotypes
-    check[,"Haplotype"] <- temp1.2
-  
+    check[, "Haplotype"] <- temp1.2
+
     # Remove
     remove(temp1.2)
-    
+
     # Remove any cases that are already defined
-    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
-    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    temp1.1 <- haplotypes[!is.na(haplotypes[, "Call"]), "Haplotype"]
+    check <- check[!check[, "Haplotype"] %in% temp1.1, ]
     remove(temp1.1)
-    
+
     # Redefine
-    haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "HET"
-    
+    haplotypes[haplotypes[, "Haplotype"] %in% check[, "Haplotype"], "Call"] <- "HET"
+
     #### If the sequence contains at least one alternate of the positive case call it negative
-    
+
     # make a list for negative cases
-    check<-expand.grid(cases[c(1,2,3,4),c(3:ncol(cases))])
-    
+    check <- expand.grid(cases[c(1, 2, 3, 4), c(3:ncol(cases))])
+
     # Make sure they are in correct format
-    check[,1:ncol(check)]<-lapply(check[,1:ncol(check)], as.character)
-    
+    check[, 1:ncol(check)] <- lapply(check[, 1:ncol(check)], as.character)
+
     # Make haplotypes
-    for(j in 1:nrow(check)){
-      temp1.1 <- check[j,]
-      temp1.1 <- paste(temp1.1[,1:length(temp1.1)], collapse = ":")
-      if(j==1){
-        temp1.2<-temp1.1
-      }else{
-        temp1.2<-c(temp1.2, temp1.1)
+    for (j in 1:nrow(check)) {
+      temp1.1 <- check[j, ]
+      temp1.1 <- paste(temp1.1[, 1:length(temp1.1)], collapse = ":")
+      if (j == 1) {
+        temp1.2 <- temp1.1
+      } else {
+        temp1.2 <- c(temp1.2, temp1.1)
       }
       remove(temp1.1)
     }
-    
+
     # Bind in haplotypes
-    check[,"Haplotype"] <- temp1.2
-    
+    check[, "Haplotype"] <- temp1.2
+
     # Remove
     remove(temp1.2)
-    
+
     # Remove any cases that are already defined
-    temp1.1 <- haplotypes[!is.na(haplotypes[,"Call"]),"Haplotype"]
-    check <- check[!check[,"Haplotype"] %in% temp1.1, ]
+    temp1.1 <- haplotypes[!is.na(haplotypes[, "Call"]), "Haplotype"]
+    check <- check[!check[, "Haplotype"] %in% temp1.1, ]
     remove(temp1.1)
-    
+
     # Redefine
-    if(exists("dominant_markers")){
-      check[,dominant_markers]=NA 
+    if (exists("dominant_markers")) {
+      check[, dominant_markers] <- NA
       temp1.1 <- na.omit(check)
-      temp1.2 <- check[!complete.cases(check),]
-      haplotypes[haplotypes[,"Haplotype"] %in% temp1.1[,"Haplotype"],"Call"] <- "NEG"
-      haplotypes[haplotypes[,"Haplotype"] %in% temp1.2[,"Haplotype"],"Call"] <- "MISSING"
+      temp1.2 <- check[!complete.cases(check), ]
+      haplotypes[haplotypes[, "Haplotype"] %in% temp1.1[, "Haplotype"], "Call"] <- "NEG"
+      haplotypes[haplotypes[, "Haplotype"] %in% temp1.2[, "Haplotype"], "Call"] <- "MISSING"
       remove(temp1.1, temp1.2, dominant_markers)
-    }else{
-      haplotypes[haplotypes[,"Haplotype"] %in% check[,"Haplotype"],"Call"] <- "NEG"
+    } else {
+      haplotypes[haplotypes[, "Haplotype"] %in% check[, "Haplotype"], "Call"] <- "NEG"
     }
-    
+
     # Reconcatinate and report
-    for (j in unique(haplotypes[,"Call"])){
-      temp1.1 <- haplotypes[haplotypes[,"Call"]==j,]
-      temp1.1 <- as.character(temp1.1[,"Haplotype"])
+    for (j in unique(haplotypes[, "Call"])) {
+      temp1.1 <- haplotypes[haplotypes[, "Call"] == j, ]
+      temp1.1 <- as.character(temp1.1[, "Haplotype"])
       temp1.1 <- paste(temp1.1, collapse = "_")
-      if(j=="POS"){
-        temp1[,"Pos"]<-temp1.1
+      if (j == "POS") {
+        temp1[, "Pos"] <- temp1.1
         remove(temp1.1)
-      }else if(j=="HET"){
-        temp1[,"Het"]<-temp1.1
+      } else if (j == "HET") {
+        temp1[, "Het"] <- temp1.1
         remove(temp1.1)
-      }else if(j=="NEG"){
-        temp1[,"Neg"]<-temp1.1
+      } else if (j == "NEG") {
+        temp1[, "Neg"] <- temp1.1
         remove(temp1.1)
-      }else if(j=="MISSING"){
-        temp1[,"Missing"]<-temp1.1
+      } else if (j == "MISSING") {
+        temp1[, "Missing"] <- temp1.1
         remove(temp1.1)
       }
     }
-    
+
     # Pull haplotypes again
-    if(is.na(temp1[,"Pos"])){temp4 <- NA}else{temp4 <- unlist(strsplit(temp1[,"Pos"], "_"))}
-    if(is.na(temp1[,"Het"])){temp5 <- NA}else{temp5 <- unlist(strsplit(temp1[,"Het"], "_"))}
-    if(is.na(temp1[,"Neg"])){temp6 <- NA}else{temp6 <- unlist(strsplit(temp1[,"Neg"], "_"))}
-    if(is.na(temp1[,"Missing"])){temp7 <- NA}else{temp7 <- unlist(strsplit(temp1[,"Missing"], "_"))}
-    
+    if (is.na(temp1[, "Pos"])) {
+      temp4 <- NA
+    } else {
+      temp4 <- unlist(strsplit(temp1[, "Pos"], "_"))
+    }
+    if (is.na(temp1[, "Het"])) {
+      temp5 <- NA
+    } else {
+      temp5 <- unlist(strsplit(temp1[, "Het"], "_"))
+    }
+    if (is.na(temp1[, "Neg"])) {
+      temp6 <- NA
+    } else {
+      temp6 <- unlist(strsplit(temp1[, "Neg"], "_"))
+    }
+    if (is.na(temp1[, "Missing"])) {
+      temp7 <- NA
+    } else {
+      temp7 <- unlist(strsplit(temp1[, "Missing"], "_"))
+    }
+
     # add to auto suggestions
-    auto_suggestions<-temp1
-    
+    auto_suggestions <- temp1
+
     # Remove
     remove(cases, check, haplotypes, heterozygous, missing, negative, positive, ref_alt)
-    
   }
-  
+
   # For every individual in the hapmap
-  for (j in colnames(temp3)){
-    
+  for (j in colnames(temp3)) {
     # Pull markers for individual
-    temp8 <- temp3[,j]
-    
+    temp8 <- temp3[, j]
+
     # Pull markers and collaps into a haplotype
     temp9 <- paste(temp8, collapse = ":")
-      
+
     # Make call
     temp10 <- ifelse(temp9 %in% temp4, "POS",
-                     ifelse(temp9 %in% temp5, "HET",
-                            ifelse(temp9 %in% temp6, "NEG",
-                                   ifelse(temp9 %in% temp7, "NA", "UNIDENTIFIED"))))
-    
-        
-    
+      ifelse(temp9 %in% temp5, "HET",
+        ifelse(temp9 %in% temp6, "NEG",
+          ifelse(temp9 %in% temp7, "NA", "UNIDENTIFIED")
+        )
+      )
+    )
+
+
+
     # Format into a dataframe
-    temp11 <- data.frame(Line = j,
-                         t(temp8),
-                         temp9, 
-                         temp10,
-                         temp10)
-    
+    temp11 <- data.frame(
+      Line = j,
+      t(temp8),
+      temp9,
+      temp10,
+      temp10
+    )
+
     # Pull optional annotations
-    temp13 <- temp1[,"Pos_Annot"]
-    temp14 <- temp1[,"Het_Annot"]    
-    temp15 <- temp1[,"Neg_Annot"]
-    temp16 <- temp1[,"Missing_Annot"]
-    
+    temp13 <- temp1[, "Pos_Annot"]
+    temp14 <- temp1[, "Het_Annot"]
+    temp15 <- temp1[, "Neg_Annot"]
+    temp16 <- temp1[, "Missing_Annot"]
+
     # Format annotations
-    if(is.na(temp11[,ncol(temp11)])==TRUE & is.na(temp16)==FALSE){
-      temp11[,ncol(temp11)] <- temp16
-    }else if(as.character(temp11[,ncol(temp11)])=="POS" & is.na(temp13)==FALSE){
-      temp11[,ncol(temp11)] <- temp13
-    }else if(as.character(temp11[,ncol(temp11)])=="HET" & is.na(temp14)==FALSE){
-      temp11[,ncol(temp11)] <- temp14
-    }else if(as.character(temp11[,ncol(temp11)])=="NEG" & is.na(temp15)==FALSE){
-      temp11[,ncol(temp11)] <- temp15
+    if (is.na(temp11[, ncol(temp11)]) == TRUE & is.na(temp16) == FALSE) {
+      temp11[, ncol(temp11)] <- temp16
+    } else if (as.character(temp11[, ncol(temp11)]) == "POS" & is.na(temp13) == FALSE) {
+      temp11[, ncol(temp11)] <- temp13
+    } else if (as.character(temp11[, ncol(temp11)]) == "HET" & is.na(temp14) == FALSE) {
+      temp11[, ncol(temp11)] <- temp14
+    } else if (as.character(temp11[, ncol(temp11)]) == "NEG" & is.na(temp15) == FALSE) {
+      temp11[, ncol(temp11)] <- temp15
     }
-    
+
     # Remove
     remove(temp13, temp14, temp15, temp16)
-    
+
     # Make new column names
     colnames(temp11) <- c("Line", paste(i, rownames(temp3), sep = "_"), paste(i, "_Haplotype", sep = ""), paste(i, "_Summary", sep = ""), paste(i, "_Summary_Annotated", sep = ""))
-    
+
     # Check if this is the first line in the hapmap
-    if(j == colnames(temp3)[1]){
-      
+    if (j == colnames(temp3)[1]) {
       # Make a new dataframe
-      temp12<-temp11
-      
+      temp12 <- temp11
+
       # Remove temporary files
       remove(temp8, temp9, temp10, temp11)
-      
-    }else{
-      
+    } else {
       # Bind onto that new dataframe
-      temp12<-rbind(temp12, temp11)
-      
+      temp12 <- rbind(temp12, temp11)
+
       # Remove temporary files
       remove(temp8, temp9, temp10, temp11)
-      
     }
   }
-  
+
   # Alternate for sequential option
   # Check if this is the first locus to be predicted
   # if(i == unique(key[,"Locus"])[1]){
-  #   
+  #
   #   # Make a new dataframe
   #   marker_report<-temp12
-  #   
+  #
   #   # Remove temporary files
   #   remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
-  #   
+  #
   # }else{
-  #   
+  #
   #   # Else bind onto that new dataframe
   #   marker_report<-suppressWarnings(merge(marker_report, temp12, by="Line"))
-  #   
+  #
   #   # Remove temporary files
   #   remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
   # }
-  
-  if(is.data.frame(auto_suggestions)==TRUE){
-    
-    # return
-    return(list(Report = temp12, 
-                AutoSuggestions = temp1))
-    
-  }else{
 
+  if (is.data.frame(auto_suggestions) == TRUE) {
+    # return
+    return(list(
+      Report = temp12,
+      AutoSuggestions = temp1
+    ))
+  } else {
     # return
     return(temp12)
-    
   }
-    
+
   # Remove temporary files
   remove(temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp12)
 }
@@ -1056,292 +1114,314 @@ stopCluster(cl)
 remove(cl)
 
 # Set j externally
-j=0
+j <- 0
 
 # Figure out where is the first full report
-for(i in 1:length(reports)){
-  
+for (i in 1:length(reports)) {
   # Pull report
   temp1 <- reports[[i]]
-  
+
   # If it is a dataframe, report that index
-  if(is.data.frame(temp1)==TRUE){j=i}
-  
+  if (is.data.frame(temp1) == TRUE) {
+    j <- i
+  }
+
   # If j is no longer 0, exit the loop
-  if(j!=0){break}
-  
+  if (j != 0) {
+    break
+  }
 }
 
 # set k externally
-k=0
+k <- 0
 
 # Figure out where is the first full report
-for(i in 1:length(reports)){
-  
+for (i in 1:length(reports)) {
   # Pull report
   temp1 <- names(reports[[i]])
-  
+
   # If it is a dataframe, report that index
-  if(length(temp1)==2 & all(c("Report","AutoSuggestions") %in% temp1)){k=i}
-  
+  if (length(temp1) == 2 & all(c("Report", "AutoSuggestions") %in% temp1)) {
+    k <- i
+  }
+
   # If j is no longer 0, exit the loop
-  if(k!=0){break}
-  
+  if (k != 0) {
+    break
+  }
 }
 
 # Now merge the parallel output
-for(i in j:length(reports)){
-  
-    # Pull report
-    temp1 <- reports[[i]]
-    
-    # If the report is not a dataframe
-    if(is.character(temp1)==TRUE){
-      
-      # Show message
-      cat("############################\n")
-      cat(temp1)
-      cat("############################\n")
-      
-      # Remove temp files
-      remove(temp1)
-      
-      # Go to next thing
-      next
-      
-    }else if(i==j & i!=k & is.data.frame(temp1)==TRUE){
-      
-      marker_report<-temp1
-      
-    }else if(i>j & i!=k & is.data.frame(temp1)==TRUE){
-      
-      # Merge marker report
-      marker_report<-suppressWarnings(merge(marker_report, temp1, by="Line"))
-      
-    }else if(i==j & i==k & is.list(temp1)==TRUE){
-      
-      auto_suggestions <- temp1[[2]]
-      marker_report<-temp1[[1]]
-      
-    }else if(i>j & i==k & is.list(temp1)==TRUE){
-      
-      auto_suggestions <- temp1[[2]]
-      marker_report<-suppressWarnings(merge(marker_report, temp1[[1]], by="Line"))
-      
-    }else if(i>j & i>=k & is.list(temp1)==TRUE){
+for (i in j:length(reports)) {
+  # Pull report
+  temp1 <- reports[[i]]
 
-      auto_suggestions<-rbind(auto_suggestions, temp1[[2]])
-      marker_report<-suppressWarnings(merge(marker_report, temp1[[1]], by="Line"))
-      
-    }
-    
+  # If the report is not a dataframe
+  if (is.character(temp1) == TRUE) {
+    # Show message
+    cat("############################\n")
+    cat(temp1)
+    cat("############################\n")
+
     # Remove temp files
     remove(temp1)
-  
+
+    # Go to next thing
+    next
+  } else if (i == j & i != k & is.data.frame(temp1) == TRUE) {
+    marker_report <- temp1
+  } else if (i > j & i != k & is.data.frame(temp1) == TRUE) {
+    # Merge marker report
+    marker_report <- suppressWarnings(merge(marker_report, temp1, by = "Line"))
+  } else if (i == j & i == k & is.list(temp1) == TRUE) {
+    auto_suggestions <- temp1[[2]]
+    marker_report <- temp1[[1]]
+  } else if (i > j & i == k & is.list(temp1) == TRUE) {
+    auto_suggestions <- temp1[[2]]
+    marker_report <- suppressWarnings(merge(marker_report, temp1[[1]], by = "Line"))
+  } else if (i > j & i >= k & is.list(temp1) == TRUE) {
+    auto_suggestions <- rbind(auto_suggestions, temp1[[2]])
+    marker_report <- suppressWarnings(merge(marker_report, temp1[[1]], by = "Line"))
+  }
+
+  # Remove temp files
+  remove(temp1)
 }
 
 # make NAs into NA
-marker_report[marker_report=="NA"]<-NA
+marker_report[marker_report == "NA"] <- NA
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Generating marker report stop:", Sys.time(), "###") 
-  
+  print_text <- paste("### Generating marker report stop:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Writing outputs start:", Sys.time(), "###") 
-  
+  print_text <- paste("### Writing outputs start:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 
 # Write out full report
 write.csv(marker_report,
-          paste(output_directory, "/", output_name, "_Marker_Report_Full.csv", sep = ""),
-          row.names = FALSE,
-          quote = TRUE)
+  paste(output_directory, "/", output_name, "_Marker_Report_Full.csv", sep = ""),
+  row.names = FALSE,
+  quote = TRUE
+)
 
 # Pull column names
 columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary_Annotated", colnames(marker_report))])
 
 # Pull summary and rename
-marker_summary<-marker_report[,columns_to_pull]
-colnames(marker_summary)<-gsub("_Summary_Annotated", "", colnames(marker_summary))
+marker_summary <- marker_report[, columns_to_pull]
+colnames(marker_summary) <- gsub("_Summary_Annotated", "", colnames(marker_summary))
 
 # Write out just summary
 write.csv(marker_summary,
-          paste(output_directory, "/", output_name, "_Marker_Report_Summary.csv", sep = ""),
-          row.names = FALSE,
-          quote = TRUE)
+  paste(output_directory, "/", output_name, "_Marker_Report_Summary.csv", sep = ""),
+  row.names = FALSE,
+  quote = TRUE
+)
 
 # Pull column names
 columns_to_pull <- c("Line", colnames(marker_report)[grep("Summary", colnames(marker_report))])
 columns_to_pull <- columns_to_pull[-grep("Annotated", columns_to_pull)]
 
 # Pull marker summary calls without annotation
-marker_calls<-marker_report[,columns_to_pull]
+marker_calls <- marker_report[, columns_to_pull]
 
-# summarize 
-for(i in colnames(marker_calls)[2:ncol(marker_calls)]){
-  
+# summarize
+for (i in colnames(marker_calls)[2:ncol(marker_calls)]) {
   # pull data
-  temp1 <- marker_calls[,c(i)]
-  
+  temp1 <- marker_calls[, c(i)]
+
   # get table
   temp2 <- as.data.table(table(temp1))
-  
+
   # get summary
-  temp3 <- data.frame(gsub("_Summary", "",i),
-                      ifelse(nrow(temp2[temp2$temp1=="POS","N"])==0, 0, temp2[temp2$temp1=="POS","N"]),
-                      ifelse(nrow(temp2[temp2$temp1=="HET","N"])==0, 0, temp2[temp2$temp1=="HET","N"]),
-                      ifelse(nrow(temp2[temp2$temp1=="NEG","N"])==0, 0, temp2[temp2$temp1=="NEG","N"]),
-                      sum(is.na(temp1)),
-                      ifelse(nrow(temp2[temp2$temp1=="UNIDENTIFIED","N"])==0, 
-                             0, 
-                             temp2[temp2$temp1=="UNIDENTIFIED","N"]),
-                      length(temp1))
-  colnames(temp3) <- c("Locus", 
-                       "Positive_Count", 
-                       "Heterozygous_Count", 
-                       "Negative_Count",
-                       "Missing_Count",
-                       "Unidentified_Count",
-                       "Total_Sampled")
-  
-  # calculate statistics 
-  temp3$Positive_Freq <- round(temp3$Positive_Count/temp3$Total_Sampled, 2)
-  temp3$Heterozygous_Freq <- round(temp3$Heterozygous_Count/temp3$Total_Sampled, 2)
-  temp3$Negative_Freq <- round(temp3$Negative_Count/temp3$Total_Sampled, 2)
-  temp3$Missing_Freq <- round(temp3$Missing_Count/temp3$Total_Sampled, 2)
-  temp3$Unidentified_Freq <- round(temp3$Unidentified_Count/temp3$Total_Sampled, 2)
-  
+  temp3 <- data.frame(
+    gsub("_Summary", "", i),
+    ifelse(nrow(temp2[temp2$temp1 == "POS", "N"]) == 0, 0, temp2[temp2$temp1 == "POS", "N"]),
+    ifelse(nrow(temp2[temp2$temp1 == "HET", "N"]) == 0, 0, temp2[temp2$temp1 == "HET", "N"]),
+    ifelse(nrow(temp2[temp2$temp1 == "NEG", "N"]) == 0, 0, temp2[temp2$temp1 == "NEG", "N"]),
+    sum(is.na(temp1)),
+    ifelse(nrow(temp2[temp2$temp1 == "UNIDENTIFIED", "N"]) == 0,
+      0,
+      temp2[temp2$temp1 == "UNIDENTIFIED", "N"]
+    ),
+    length(temp1)
+  )
+  colnames(temp3) <- c(
+    "Locus",
+    "Positive_Count",
+    "Heterozygous_Count",
+    "Negative_Count",
+    "Missing_Count",
+    "Unidentified_Count",
+    "Total_Sampled"
+  )
+
+  # calculate statistics
+  temp3$Positive_Freq <- round(temp3$Positive_Count / temp3$Total_Sampled, 2)
+  temp3$Heterozygous_Freq <- round(temp3$Heterozygous_Count / temp3$Total_Sampled, 2)
+  temp3$Negative_Freq <- round(temp3$Negative_Count / temp3$Total_Sampled, 2)
+  temp3$Missing_Freq <- round(temp3$Missing_Count / temp3$Total_Sampled, 2)
+  temp3$Unidentified_Freq <- round(temp3$Unidentified_Count / temp3$Total_Sampled, 2)
+
   # make dataframe
-  if(i==colnames(marker_calls)[2]){
-    marker_freq_report<-temp3
-  }else{
-    marker_freq_report<-rbind(marker_freq_report,temp3)
+  if (i == colnames(marker_calls)[2]) {
+    marker_freq_report <- temp3
+  } else {
+    marker_freq_report <- rbind(marker_freq_report, temp3)
   }
-  
+
   # Remove
   remove(temp1, temp2, temp3)
-  
 }
 
 # write out frequency report
 write.csv(marker_freq_report,
-          paste(output_directory, "/", output_name, "_Marker_Report_Statistics.csv", sep = ""),
-          row.names = FALSE,
-          quote = TRUE)  
-  
+  paste(output_directory, "/", output_name, "_Marker_Report_Statistics.csv", sep = ""),
+  row.names = FALSE,
+  quote = TRUE
+)
+
 
 # Get information
 missing_haplotypes <- c()
 
 # Pull out the problem haplotypes
-for (i in unique(key[,"Locus"])){
- 
-  # Pull data
-  temp1 <- as.data.frame(marker_report[,c("Line",colnames(marker_report)[grep(pattern = i, colnames(marker_report))])])
-  
+for (i in colnames(marker_summary)[2:ncol(marker_summary)]) {
+  # Check for partial matches
+  if (length(grep(i, key[, "Locus"])) > 1) {
+    # Length of the base string 'i'
+    len_i <- nchar(i)
+
+    # Length of mismatches
+    len_all <- nchar(key[, "Locus"][grep(i, key[, "Locus"])])
+
+    # Pull correct string and all incorrect strings
+    exact_i_index <- which(len_all == len_i)
+
+    # Pull correct string
+    correct_i <- key[, "Locus"][grep(i, key[, "Locus"])[exact_i_index]]
+
+    # Pull incorrect string
+    incorrect_i <- key[, "Locus"][grep(i, key[, "Locus"])[-exact_i_index]]
+
+    # Pull data (subset marker_report)
+    temp1 <- as.data.frame(marker_report[, c("Line", colnames(marker_report)[grep(pattern = correct_i, colnames(marker_report))])])
+
+    # Drop the incorrect i
+    for (j in 1:length(incorrect_i)) {
+      # Intersect with list of genes
+      string_toss <- colnames(temp1)[grep(pattern = incorrect_i[j], colnames(temp1))]
+      string_toss <- string_toss[!string_toss %in% paste(correct_i, key_markers, sep = "_")]
+      temp1 <- temp1[, !colnames(temp1) %in% string_toss]
+      remove(string_toss)
+    }
+
+    # Remove
+    remove(
+      len_i,
+      len_all,
+      exact_i_index,
+      correct_i,
+      incorrect_i
+    )
+  } else {
+    # Pull data
+    temp1 <- as.data.frame(marker_report[, c("Line", colnames(marker_report)[grep(pattern = i, colnames(marker_report))])])
+  }
+
   # if the locus isnt reported, skip over
-  if(ncol(temp1)==1){
+  if (ncol(temp1) == 1) {
     next
   }
-  
+
   # Rename columns
   temp2 <- colnames(temp1)
   temp2 <- gsub(paste(i, "_", sep = ""), "", temp2)
   colnames(temp1) <- temp2
-  
+
   # Filter
-  temp1 <- na.omit(temp1[temp1[,"Summary"]=="UNIDENTIFIED",])
-  
+  temp1 <- na.omit(temp1[temp1[, "Summary"] == "UNIDENTIFIED", ])
+
   # If
-  if(nrow(temp1)!=0){
-  
+  if (nrow(temp1) != 0) {
     # Pull data
-    temp3 <- key[key[,"Locus"]==i,]
-    
+    temp3 <- key[key[, "Locus"] == i, ]
+
     # Make dataframe
-    temp4 <- unique(temp1[,"Haplotype"])
-    
+    temp4 <- unique(temp1[, "Haplotype"])
+
     # Bind
-    temp5 <- data.frame(temp3, 
-                        Unidentified_Haplotype=temp4,
-                        row.names = NULL)
-    
+    temp5 <- data.frame(temp3,
+      Unidentified_Haplotype = temp4,
+      row.names = NULL
+    )
+
     # Rbind
     missing_haplotypes <- rbind(missing_haplotypes, temp5)
-    
+
     # Remove
     remove(temp3, temp4, temp5)
-      
   }
-  
+
   # Remove
   remove(temp1, temp2)
-  
 }
 
 # Check if a file needs to be written out
-if(!is.null(missing_haplotypes)){
- 
+if (!is.null(missing_haplotypes)) {
   # Write out information
   write.csv(missing_haplotypes,
-            paste(output_directory, "/", output_name, "_Unidentified_Haplotypes.csv", sep = ""),
-            row.names = FALSE,
-            quote = TRUE)  
-  
+    paste(output_directory, "/", output_name, "_Unidentified_Haplotypes.csv", sep = ""),
+    row.names = FALSE,
+    quote = TRUE
+  )
 }
 
 # Check if a file needs to be written out
-if(!is.null(auto_suggestions)){
- 
+if (!is.null(auto_suggestions)) {
   # Write out information
   write.csv(auto_suggestions,
-            paste(output_directory, "/", output_name, "_Auto_Suggested_Haplotypes.csv", sep = ""),
-            row.names = FALSE,
-            quote = TRUE)  
-  
+    paste(output_directory, "/", output_name, "_Auto_Suggested_Haplotypes.csv", sep = ""),
+    row.names = FALSE,
+    quote = TRUE
+  )
 }
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Writing outputs stop:", Sys.time(), "###") 
-  
+  print_text <- paste("### Writing outputs stop:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 
 # Check verbose option
-if(verbose==TRUE){
-  
+if (verbose == TRUE) {
   # Message
-  print_text <- paste("### Script finished time:", Sys.time(), "###") 
-  
+  print_text <- paste("### Script finished time:", Sys.time(), "###")
+
   # Print
   print(paste(rep("#", nchar(print_text)), collapse = ""))
   print(print_text)
   print(paste(rep("#", nchar(print_text)), collapse = ""))
-  
 }
 ```
