@@ -198,7 +198,7 @@ For a region characterized by codominant biallelic markers (SNPs or indels where
 1. **Seed Positive Case:** A complete-case homozygous haplotype defines the baseline positive state (e.g., `A:G:T:G:A:C:C`).
 2. **Tolerated Missingness (`N_Missing`):** Haplotypes matching the positive allele at all non-missing positions with at most `N_Missing` `"N"` calls are still called `POS` (e.g., `A:G:N:G:A:C:C` when `N_Missing >= 1`).
 3. **Heterozygous Recombination Risk:** Any haplotype composed of positive, heterozygous (IUPAC `R, Y, S, W, K, M` or indel `0`), and tolerated missing calls—with at least one heterozygous marker and no negative alleles—is called `HET` (e.g., `A:G:Y:W:A:C:C`).
-4. **Conservative Negative Classification:** A single marker carrying the alternative (negative) allele could indicate recombination separating the marker from the causal polymorphism; therefore, any haplotype with $\le \text{N\_Missing}$ missing markers that carries at least one negative allele is called `NEG` (e.g., `A:G:C:G:A:C:C`).
+4. **Conservative Negative Classification:** A single marker carrying the alternative (negative) allele could indicate recombination separating the marker from the causal polymorphism; therefore, any haplotype with `N_Missing` missing markers that carries at least one negative allele is called `NEG` (e.g., `A:G:C:G:A:C:C`).
 5. **Excess Missing Data:** Any haplotype with more than `N_Missing` missing calls at codominant markers is called `MISSING` (e.g., `A:G:N:N:N:N:C`).
 
 ### 2. Multiple Positive (`Pos`) Haplotypes in Auto Mode
