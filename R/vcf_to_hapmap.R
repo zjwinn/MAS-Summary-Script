@@ -243,5 +243,65 @@ vcf_to_hapmap <- function(vcf_row, verbose = FALSE) {
       row.names = NULL
     )
     return(hapmap_row)
+
+    # If the marker is a multi-nucleotide polymorphism (MNP) of equal length
+  } else if (nchar(ref_allele) == nchar(alt_allele) & nchar(ref_allele) > 1) {
+    if (verbose == TRUE) {
+      print("MNP")
+    }
+    # Find the first differing position between ref and alt alleles
+    ref_chars <- strsplit(ref_allele, "")[[1]]
+    alt_chars <- strsplit(alt_allele, "")[[1]]
+    diff_idx <- which(ref_chars != alt_chars)[1]
+    if (is.na(diff_idx)) diff_idx <- 1
+    ref_base <- ref_chars[diff_idx]
+    alt_base <- alt_chars[diff_idx]
+
+    genotype_calls[, 1:ncol(genotype_calls)] <- lapply(
+      genotype_calls[, 1:ncol(genotype_calls), drop = FALSE],
+      function(col) gsub(0, ref_base, col)
+    )
+    genotype_calls[, 1:ncol(genotype_calls)] <- lapply(
+      genotype_calls[, 1:ncol(genotype_calls), drop = FALSE],
+      function(col) gsub(1, alt_base, col)
+    )
+    genotype_calls[genotype_calls == "A/A"] <- "A"
+    genotype_calls[genotype_calls == "T/T"] <- "T"
+    genotype_calls[genotype_calls == "C/C"] <- "C"
+    genotype_calls[genotype_calls == "G/G"] <- "G"
+    genotype_calls[genotype_calls == "A/G"] <- "R"
+    genotype_calls[genotype_calls == "G/A"] <- "R"
+    genotype_calls[genotype_calls == "C/T"] <- "Y"
+    genotype_calls[genotype_calls == "T/C"] <- "Y"
+    genotype_calls[genotype_calls == "G/C"] <- "S"
+    genotype_calls[genotype_calls == "C/G"] <- "S"
+    genotype_calls[genotype_calls == "A/T"] <- "W"
+    genotype_calls[genotype_calls == "T/A"] <- "W"
+    genotype_calls[genotype_calls == "G/T"] <- "K"
+    genotype_calls[genotype_calls == "T/G"] <- "K"
+    genotype_calls[genotype_calls == "A/C"] <- "M"
+    genotype_calls[genotype_calls == "C/A"] <- "M"
+    genotype_calls[genotype_calls == "./."] <- "N"
+
+    hapmap_row <- data.frame(
+      `rs#` = marker_id,
+      alleles = paste(ref_base, "/", alt_base, sep = ""),
+      chrom = chrom_name,
+      pos = marker_pos,
+      strand = "+",
+      `assembly#` = "NA",
+      center = "NA",
+      protLSID = "NA",
+      assayLSID = "NA",
+      panelLSID = "NA",
+      QCcode = "NA",
+      genotype_calls,
+      check.names = FALSE,
+      row.names = NULL
+    )
+    return(hapmap_row)
+  } else {
+    warning("Marker ", marker_id, " with REF='", ref_allele, "' and ALT='", alt_allele, "' could not be categorized into SNP, INDEL, MNP, or DOMINANT.")
+    return(NULL)
   }
 }

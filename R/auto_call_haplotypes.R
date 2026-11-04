@@ -163,9 +163,10 @@ auto_call_haplotypes <- function(
   ), stringsAsFactors = FALSE)
   colnames(pos_candidates) <- c("Haplotype", ref_alt[, "Marker"])
 
-  # First look for strictly complete homozygous positive haplotypes (no N and no IUPAC het codes)
+  # First look for strictly complete homozygous positive haplotypes (no N, no 0, and no IUPAC het codes)
   positive <- pos_candidates
   positive[positive == "N"] <- NA
+  positive[positive == "0"] <- NA
   positive[positive == "R"] <- NA
   positive[positive == "Y"] <- NA
   positive[positive == "S"] <- NA
@@ -177,6 +178,7 @@ auto_call_haplotypes <- function(
   # If no strictly non-N positive case exists, check if a dominant/null-positive ('N') haplotype was supplied
   if (nrow(positive) == 0) {
     dom_positive <- pos_candidates
+    dom_positive[dom_positive == "0"] <- NA
     dom_positive[dom_positive == "R"] <- NA
     dom_positive[dom_positive == "Y"] <- NA
     dom_positive[dom_positive == "S"] <- NA
