@@ -63,29 +63,24 @@ calculate_marker_statistics <- function(marker_report) {
 
   for (summary_col in colnames(marker_calls)[2:ncol(marker_calls)]) {
     locus_call_vec <- marker_calls[, c(summary_col)]
-    call_counts_table <- data.table::as.data.table(table(locus_call_vec))
+    call_counts <- table(locus_call_vec)
+
+    pos_count <- if ("POS" %in% names(call_counts)) as.integer(call_counts[["POS"]]) else 0L
+    het_count <- if ("HET" %in% names(call_counts)) as.integer(call_counts[["HET"]]) else 0L
+    neg_count <- if ("NEG" %in% names(call_counts)) as.integer(call_counts[["NEG"]]) else 0L
+    missing_count <- sum(is.na(locus_call_vec))
+    unid_count <- if ("UNIDENTIFIED" %in% names(call_counts)) as.integer(call_counts[["UNIDENTIFIED"]]) else 0L
+    total_count <- length(locus_call_vec)
 
     locus_stats_row <- data.frame(
-      gsub("_Summary", "", summary_col),
-      ifelse(nrow(call_counts_table[call_counts_table$locus_call_vec == "POS", "N"]) == 0, 0, call_counts_table[call_counts_table$locus_call_vec == "POS", "N"]),
-      ifelse(nrow(call_counts_table[call_counts_table$locus_call_vec == "HET", "N"]) == 0, 0, call_counts_table[call_counts_table$locus_call_vec == "HET", "N"]),
-      ifelse(nrow(call_counts_table[call_counts_table$locus_call_vec == "NEG", "N"]) == 0, 0, call_counts_table[call_counts_table$locus_call_vec == "NEG", "N"]),
-      sum(is.na(locus_call_vec)),
-      ifelse(
-        nrow(call_counts_table[call_counts_table$locus_call_vec == "UNIDENTIFIED", "N"]) == 0,
-        0,
-        call_counts_table[call_counts_table$locus_call_vec == "UNIDENTIFIED", "N"]
-      ),
-      length(locus_call_vec)
-    )
-    colnames(locus_stats_row) <- c(
-      "Locus",
-      "Positive_Count",
-      "Heterozygous_Count",
-      "Negative_Count",
-      "Missing_Count",
-      "Unidentified_Count",
-      "Total_Sampled"
+      Locus = gsub("_Summary", "", summary_col),
+      Positive_Count = pos_count,
+      Heterozygous_Count = het_count,
+      Negative_Count = neg_count,
+      Missing_Count = missing_count,
+      Unidentified_Count = unid_count,
+      Total_Sampled = total_count,
+      stringsAsFactors = FALSE
     )
 
     # Calculate frequencies
